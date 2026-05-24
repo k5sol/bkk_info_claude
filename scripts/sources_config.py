@@ -77,8 +77,7 @@ SOURCES = [
         "lang": "th",
     },
 
-    # ── TAT公式イベント（本文も取得して複数イベント分離） ───────────
-    # RSSが取得できない場合のフォールバックとして複数URLを設定
+    # ── イベント情報（英語・本文取得して複数イベント分離） ───────────
     {
         "id": "tat_events",
         "name": "TAT公式イベント",
@@ -88,9 +87,39 @@ SOURCES = [
         "max_items": 10,
         "lang": "en",
     },
+    {
+        # BK Magazineの「things to do this weekend」記事
+        # 毎週木〜金に投稿。具体的な日程・会場・詳細が本文に含まれる最良ソース
+        "id": "bk_events",
+        "name": "BK Magazine イベント",
+        "type": "rss_fulltext",
+        "url": "https://bk.asia-city.com/things-to-do/more-event-news/feed",
+        "category": "events",
+        "max_items": 5,   # まとめ記事なので少数で十分
+        "lang": "en",
+    },
+    {
+        "id": "coconuts_bkk",
+        "name": "Coconuts Bangkok",
+        "type": "rss_fulltext",
+        "url": "https://coconuts.co/bangkok/feed/",
+        "category": "events",
+        "max_items": 10,
+        "lang": "en",
+        # イベント記事とニュース混在のためフィルタで選別
+    },
+    {
+        "id": "nation_events",
+        "name": "Nation Thailand イベント",
+        "type": "rss_fulltext",
+        "url": "https://www.nationthailand.com/feed/rss",
+        "category": "events",
+        "max_items": 10,
+        "lang": "en",
+    },
 
     # ── モールイベント（Googleニュース検索RSS + 本文取得） ─────────
-    # Googleニュース経由は要約が短いため本文も取得する
+    # Googleニュース経由は本文も取得して日程抽出精度を上げる
     {
         "id": "iconsiam_gnews",
         "name": "ICONSIAM イベント",
@@ -119,7 +148,7 @@ SOURCES = [
         "lang": "th",
     },
     {
-        "id": "emquartier_gnews",
+        "id": "emdistrict_gnews",
         "name": "EmQuartier / EmSphere イベント",
         "type": "rss_fulltext",
         "url": "https://news.google.com/rss/search?q=EmQuartier+EmSphere+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
@@ -137,6 +166,12 @@ SOURCES = [
         "lang": "th",
     },
 ]
+
+# translate.py で複数イベント分離を行うソースID
+MULTI_EVENT_SOURCES = {"tat_events", "bk_events"}
+
+# イベント記事かどうか本文でフィルタするソースID（ニュース混在ソース）
+FILTER_FOR_EVENTS_SOURCES = {"coconuts_bkk", "nation_events"}
 
 CATEGORY_LABELS = {
     "ja_news":       "日本語サイト",

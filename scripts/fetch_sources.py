@@ -119,8 +119,7 @@ def fetch_rss(source: dict, client: httpx.Client) -> list[dict]:
     fulltext = source.get("type") == "rss_fulltext"
     print(f"  [{'FULL' if fulltext else 'RSS '}] {source['name']} …", end=" ", flush=True)
     try:
-        feed = feedparser.parse(source["url"], request_headers=HEADERS,
-                                request_parameters={"timeout": TIMEOUT_RSS})
+        feed = feedparser.parse(source["url"], request_headers=HEADERS)
         if not feed.entries:
             # feedparserがタイムアウト等で失敗した場合
             print(f"FAIL (エントリなし)")

@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """
 fetch_sources.py
-RSS フィードの取得とウェブスクレイピングを行い
-data/raw_articles.json に保存する
+RSS取得 + TAT記事は本文も取得して data/raw_articles.json に保存する
 """
-import json
-import re
-import sys
-import hashlib
+import json, hashlib, sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -24,10 +20,7 @@ DATA_DIR.mkdir(exist_ok=True)
 RAW_FILE = DATA_DIR / "raw_articles.json"
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (compatible; BangkokCurationBot/1.0; "
-        "+https://github.com/your-username/bangkok-curation)"
-    ),
+    "User-Agent": "Mozilla/5.0 (compatible; BangkokCurationBot/1.0)",
     "Accept-Language": "th,en;q=0.9",
 }
 TIMEOUT = 20
@@ -38,7 +31,6 @@ def url_hash(url: str) -> str:
 
 
 def normalize_date(raw: str | None) -> str:
-    """不正形式の日付文字列を ISO 8601 に正規化する。失敗時は現在時刻。"""
     if not raw:
         return datetime.now(timezone.utc).isoformat()
     try:
@@ -47,72 +39,19 @@ def normalize_date(raw: str | None) -> str:
         return datetime.now(timezone.utc).isoformat()
 
 
-def clean_html(text: str | None) -> str:
+def clean_html(text: str | None, maxlen: int = 1000) -> str:
     if not text:
         return ""
-    return BeautifulSoup(text, "lxml").get_text(" ", strip=True)[:1000]
+    return BeautifulSoup(text, "lxml").get_text(" ", strip=True)[:maxlen]
 
 
-# ─── RSS 取得 ───────────────────────────────────────────────────────────────
-
-def fetch_rss(source: dict) -> list[dict]:
-    print(f"  [RSS] {source['name']} …", end=" ", flush=True)
-    try:
-        feed = feedparser.parse(
-            source["url"],
-            request_headers=HEADERS,
-        )
-        articles = []
-        for entry in feed.entries[: source.get("max_items", 20)]:
-            link = entry.get("link", "")
-            if not link:
-                continue
-            pub = (
-                entry.get("published")
-                or entry.get("updated")
-                or entry.get("dc_date")
-                or None
-            )
-            summary = (
-                entry.get("summary")
-                or entry.get("content", [{}])[0].get("value", "")
-                or ""
-            )
-            articles.append(
-                {
-                    "id": url_hash(link),
-                    "source_id": source["id"],
-                    "source_name": source["name"],
-                    "category": source["category"],
-                    "title_original": clean_html(entry.get("title", "")),
-                    "summary_original": clean_html(summary),
-                    "url": link,
-                    "image_url": _extract_image(entry),
-                    "published_at": normalize_date(pub),
-                    "fetched_at": datetime.now(timezone.utc).isoformat(),
-                    "translated": False,
-                }
-            )
-        print(f"OK ({len(articles)}件)")
-        return articles
-    except Exception as e:
-        print(f"FAIL: {e}")
-        return []
-
-
-def _extract_image(entry) -> str | None:
-    """RSS エントリから画像URLを探す"""
-    # media:thumbnail
-    if hasattr(entry, "media_thumbnail"):
-        imgs = entry.media_thumbnail
-        if imgs:
-            return imgs[0].get("url")
-    # enclosure
+def extract_image(entry) -> str | None:
+    if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
+        return entry.media_thumbnail[0].get("url")
     for enc in entry.get("enclosures", []):
         if enc.get("type", "").startswith("image/"):
             return enc.get("url")
-    # content の img タグ
-    content = entry.get("content", [{}])[0].get("value", "") or entry.get("summary", "")
+    content = (entry.get("content") or [{}])[0].get("value", "") or entry.get("summary", "")
     if content:
         soup = BeautifulSoup(content, "lxml")
         img = soup.find("img")
@@ -121,94 +60,68 @@ def _extract_image(entry) -> str | None:
     return None
 
 
-# ─── スクレイピング ──────────────────────────────────────────────────────────
-
-def fetch_scrape(source: dict, client: httpx.Client) -> list[dict]:
-    print(f"  [Scrape] {source['name']} …", end=" ", flush=True)
-    rules = source.get("scrape_rules", {})
-
-    # tatnewsはフィードURLなのでfeedparserで処理
-    if source["url"].endswith("/feed/") or "feed" in source["url"]:
-        return fetch_rss({**source, "type": "rss"})
-
+def fetch_article_body(url: str, client: httpx.Client) -> str:
+    """記事本文を取得してテキストを返す（TAT用）"""
     try:
-        resp = client.get(source["url"], timeout=TIMEOUT)
+        resp = client.get(url, timeout=TIMEOUT)
         resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "lxml")
+        # 本文候補セレクタを順に試す
+        for sel in ["article", ".entry-content", ".post-content", "main"]:
+            el = soup.select_one(sel)
+            if el:
+                return el.get_text(" ", strip=True)[:3000]
+        return soup.get_text(" ", strip=True)[:3000]
+    except Exception:
+        return ""
+
+
+def make_article(entry, source: dict, body: str = "") -> dict:
+    link = entry.get("link", "")
+    pub  = (entry.get("published") or entry.get("updated")
+            or entry.get("dc_date") or None)
+    summary = (entry.get("summary")
+               or (entry.get("content") or [{}])[0].get("value", "") or "")
+    return {
+        "id":               url_hash(link),
+        "source_id":        source["id"],
+        "source_name":      source["name"],
+        "category":         source["category"],
+        "lang":             source.get("lang", "th"),
+        "title_original":   clean_html(entry.get("title", "")),
+        "summary_original": clean_html(summary),
+        "body_original":    body,           # TAT記事のみ本文あり
+        "url":              link,
+        "image_url":        extract_image(entry),
+        "published_at":     normalize_date(pub),
+        "fetched_at":       datetime.now(timezone.utc).isoformat(),
+        "translated":       False,
+        "event_start":      None,
+        "event_end":        None,
+        "event_venue":      None,
+        "event_admission":  None,
+    }
+
+
+def fetch_rss(source: dict, client: httpx.Client | None = None) -> list[dict]:
+    print(f"  [RSS] {source['name']} …", end=" ", flush=True)
+    fulltext = source.get("type") == "rss_fulltext"
+    try:
+        feed = feedparser.parse(source["url"], request_headers=HEADERS)
+        articles = []
+        for entry in feed.entries[: source.get("max_items", 20)]:
+            if not entry.get("link"):
+                continue
+            body = ""
+            if fulltext and client:
+                body = fetch_article_body(entry["link"], client)
+            articles.append(make_article(entry, source, body))
+        print(f"OK ({len(articles)}件)")
+        return articles
     except Exception as e:
         print(f"FAIL: {e}")
         return []
 
-    soup = BeautifulSoup(resp.text, "lxml")
-    base_url = "/".join(source["url"].split("/")[:3])
-
-    item_sel  = rules.get("item_selector",  "article")
-    title_sel = rules.get("title_selector", "h2, h3")
-    date_sel  = rules.get("date_selector",  "time")
-    link_sel  = rules.get("link_selector",  "a")
-    img_sel   = rules.get("image_selector", "img")
-
-    items = soup.select(item_sel)
-    articles = []
-    seen = set()
-
-    for item in items[: source.get("max_items", 10)]:
-        # リンク
-        a = item.select_one(link_sel)
-        href = a["href"] if a and a.get("href") else ""
-        if not href:
-            continue
-        if not href.startswith("http"):
-            href = base_url + href
-        if href in seen:
-            continue
-        seen.add(href)
-
-        # タイトル
-        t_el = item.select_one(title_sel)
-        title = t_el.get_text(strip=True) if t_el else ""
-        if not title:
-            continue
-
-        # 日付
-        d_el = item.select_one(date_sel)
-        raw_date = (
-            d_el.get("datetime") or d_el.get_text(strip=True)
-            if d_el
-            else None
-        )
-
-        # 概要（タイトル・日付・リンク要素以外のテキスト）
-        for el in item.select(f"{title_sel}, {date_sel}, {link_sel}"):
-            el.decompose()
-        summary = item.get_text(" ", strip=True)[:500]
-
-        # 画像
-        img = item.select_one(img_sel)
-        img_url = img.get("src") or img.get("data-src") if img else None
-        if img_url and not img_url.startswith("http"):
-            img_url = base_url + img_url
-
-        articles.append(
-            {
-                "id": url_hash(href),
-                "source_id": source["id"],
-                "source_name": source["name"],
-                "category": source["category"],
-                "title_original": title,
-                "summary_original": summary,
-                "url": href,
-                "image_url": img_url,
-                "published_at": normalize_date(raw_date),
-                "fetched_at": datetime.now(timezone.utc).isoformat(),
-                "translated": False,
-            }
-        )
-
-    print(f"OK ({len(articles)}件)")
-    return articles
-
-
-# ─── メイン ─────────────────────────────────────────────────────────────────
 
 def main():
     print("=== fetch_sources.py 開始 ===")
@@ -216,10 +129,7 @@ def main():
 
     with httpx.Client(headers=HEADERS, follow_redirects=True) as client:
         for source in SOURCES:
-            if source["type"] == "rss":
-                articles = fetch_rss(source)
-            else:
-                articles = fetch_scrape(source, client)
+            articles = fetch_rss(source, client)
             all_articles.extend(articles)
 
     RAW_FILE.write_text(

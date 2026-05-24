@@ -4,17 +4,35 @@ dedupe.py
 raw_articles.json から重複を除去し、
 既存の翻訳済み記事（articles.json）とマージして
 data/articles.json を更新する
+
+保持期間:
+  ニュース        : 7日
+  イベント・モール : 30日（記事公開日ベース。開催日が先のものも保持）
 """
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-DATA_DIR = Path(__file__).parent.parent / "data"
-RAW_FILE     = DATA_DIR / "raw_articles.json"
+DATA_DIR      = Path(__file__).parent.parent / "data"
+RAW_FILE      = DATA_DIR / "raw_articles.json"
 ARTICLES_FILE = DATA_DIR / "articles.json"
 
-# 古い記事を保持する日数
-KEEP_DAYS = 7
+KEEP_DAYS_NEWS  = 7
+KEEP_DAYS_EVENT = 30
+
+
+def _cutoff(category: str) -> datetime:
+    days = KEEP_DAYS_EVENT if category in ("events", "mall_events") else KEEP_DAYS_NEWS
+    return datetime.now(timezone.utc) - timedelta(days=days)
+
+
+def _is_recent(article: dict) -> bool:
+    pub_str = article.get("published_at", "")
+    try:
+        pub = datetime.fromisoformat(pub_str)
+        return pub >= _cutoff(article.get("category", "news"))
+    except Exception:
+        return True  # パース失敗は除外しない
 
 
 def main():
@@ -22,15 +40,12 @@ def main():
 
     raw: list[dict] = json.loads(RAW_FILE.read_text(encoding="utf-8"))
 
-    # 既存の翻訳済み記事を読み込む（初回は空）
     existing: list[dict] = []
     if ARTICLES_FILE.exists():
         existing = json.loads(ARTICLES_FILE.read_text(encoding="utf-8"))
 
-    # 既存記事をid辞書にする
     existing_map: dict[str, dict] = {a["id"]: a for a in existing}
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)
     added = 0
     skipped_dup = 0
     skipped_old = 0
@@ -38,31 +53,22 @@ def main():
     for article in raw:
         aid = article["id"]
 
-        # 既存に同じURLのものがあれば翻訳状態を引き継ぐだけ
         if aid in existing_map:
             skipped_dup += 1
             continue
 
-        # 古すぎる記事は除外
-        try:
-            pub = datetime.fromisoformat(article["published_at"])
-            if pub < cutoff:
-                skipped_old += 1
-                continue
-        except Exception:
-            pass
+        if not _is_recent(article):
+            skipped_old += 1
+            continue
 
         existing_map[aid] = article
         added += 1
 
-    # 古い記事を削除
-    merged = [
-        a for a in existing_map.values()
-        if _is_recent(a["published_at"], cutoff)
-    ]
+    # 期限切れを削除
+    merged = [a for a in existing_map.values() if _is_recent(a)]
 
-    # 日付の新しい順に並べ替え
-    merged.sort(key=lambda a: a["published_at"], reverse=True)
+    # 日付の新しい順
+    merged.sort(key=lambda a: a.get("published_at", ""), reverse=True)
 
     ARTICLES_FILE.write_text(
         json.dumps(merged, ensure_ascii=False, indent=2),
@@ -70,14 +76,6 @@ def main():
     )
     print(f"追加: {added}件 / 重複スキップ: {skipped_dup}件 / 古いためスキップ: {skipped_old}件")
     print(f"合計 {len(merged)} 件を {ARTICLES_FILE} に保存")
-
-
-def _is_recent(pub_str: str, cutoff: datetime) -> bool:
-    try:
-        pub = datetime.fromisoformat(pub_str)
-        return pub >= cutoff
-    except Exception:
-        return True  # パース失敗は除外しない
 
 
 if __name__ == "__main__":

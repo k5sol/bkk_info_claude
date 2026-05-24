@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 fetch_sources.py
-RSS取得 + TAT記事は本文も取得して data/raw_articles.json に保存する
+RSS取得。TAT記事（rss_fulltext）は本文も取得する。
 """
-import json, hashlib, sys
+import json, hashlib, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,10 +20,16 @@ DATA_DIR.mkdir(exist_ok=True)
 RAW_FILE = DATA_DIR / "raw_articles.json"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (compatible; BangkokCurationBot/1.0)",
-    "Accept-Language": "th,en;q=0.9",
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "en-US,en;q=0.9,th;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
-TIMEOUT = 20
+TIMEOUT_RSS  = 30
+TIMEOUT_BODY = 20
 
 
 def url_hash(url: str) -> str:
@@ -60,20 +66,26 @@ def extract_image(entry) -> str | None:
     return None
 
 
-def fetch_article_body(url: str, client: httpx.Client) -> str:
-    """記事本文を取得してテキストを返す（TAT用）"""
-    try:
-        resp = client.get(url, timeout=TIMEOUT)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
-        # 本文候補セレクタを順に試す
-        for sel in ["article", ".entry-content", ".post-content", "main"]:
-            el = soup.select_one(sel)
-            if el:
-                return el.get_text(" ", strip=True)[:3000]
-        return soup.get_text(" ", strip=True)[:3000]
-    except Exception:
-        return ""
+def fetch_body(url: str, client: httpx.Client) -> str:
+    """記事本文を取得（失敗しても空文字で続行）"""
+    for attempt in range(2):
+        try:
+            resp = client.get(url, timeout=TIMEOUT_BODY)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "lxml")
+            for sel in ["article .entry-content", ".entry-content",
+                        "article", ".post-content", "main article", "main"]:
+                el = soup.select_one(sel)
+                if el and len(el.get_text(strip=True)) > 200:
+                    return el.get_text(" ", strip=True)[:4000]
+            return soup.get_text(" ", strip=True)[:4000]
+        except httpx.TimeoutException:
+            print(f"      本文取得タイムアウト (attempt {attempt+1}): {url[:60]}")
+            time.sleep(2)
+        except Exception as e:
+            print(f"      本文取得エラー: {e}")
+            break
+    return ""
 
 
 def make_article(entry, source: dict, body: str = "") -> dict:
@@ -90,7 +102,7 @@ def make_article(entry, source: dict, body: str = "") -> dict:
         "lang":             source.get("lang", "th"),
         "title_original":   clean_html(entry.get("title", "")),
         "summary_original": clean_html(summary),
-        "body_original":    body,           # TAT記事のみ本文あり
+        "body_original":    body,
         "url":              link,
         "image_url":        extract_image(entry),
         "published_at":     normalize_date(pub),
@@ -103,21 +115,38 @@ def make_article(entry, source: dict, body: str = "") -> dict:
     }
 
 
-def fetch_rss(source: dict, client: httpx.Client | None = None) -> list[dict]:
-    print(f"  [RSS] {source['name']} …", end=" ", flush=True)
+def fetch_rss(source: dict, client: httpx.Client) -> list[dict]:
     fulltext = source.get("type") == "rss_fulltext"
+    print(f"  [{'FULL' if fulltext else 'RSS '}] {source['name']} …", end=" ", flush=True)
     try:
-        feed = feedparser.parse(source["url"], request_headers=HEADERS)
+        feed = feedparser.parse(source["url"], request_headers=HEADERS,
+                                request_parameters={"timeout": TIMEOUT_RSS})
+        if not feed.entries:
+            # feedparserがタイムアウト等で失敗した場合
+            print(f"FAIL (エントリなし)")
+            return []
+
         articles = []
         for entry in feed.entries[: source.get("max_items", 20)]:
             if not entry.get("link"):
                 continue
             body = ""
-            if fulltext and client:
-                body = fetch_article_body(entry["link"], client)
+            if fulltext:
+                body = fetch_body(entry["link"], client)
+                if body:
+                    print(f".", end="", flush=True)  # 進捗表示
+                else:
+                    print(f"x", end="", flush=True)  # 取得失敗
+                time.sleep(0.5)  # サーバー負荷軽減
             articles.append(make_article(entry, source, body))
-        print(f"OK ({len(articles)}件)")
+
+        has_body = sum(1 for a in articles if a.get("body_original"))
+        if fulltext:
+            print(f" OK ({len(articles)}件, 本文取得:{has_body}件)")
+        else:
+            print(f"OK ({len(articles)}件)")
         return articles
+
     except Exception as e:
         print(f"FAIL: {e}")
         return []

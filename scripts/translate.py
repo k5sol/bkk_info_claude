@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 translate.py
-Step1: news_pending フィルタ＋国内/国際 分類
-Step2: TAT記事を本文から複数イベントに分離
-Step3: mall_events / events（単体）を翻訳＋イベント情報抽出
-Step1b: ニュース翻訳
-ja_news はスキップ
+Step1 : news_pending フィルタ＋国内/国際 分類
+Step2 : TAT記事（source_id=tat_events）を本文から複数イベントに分離
+Step3 : mall_events を本文付きで翻訳＋日程抽出
+Step3b: events（単体）を翻訳＋日程抽出
+Step4 : ニュース翻訳
+ja_news : スキップ（タイトル・要約をそのまま転記）
 """
 import json, os, sys, time, hashlib
 from pathlib import Path
@@ -17,36 +18,36 @@ BATCH_SIZE    = 5
 
 client_instance = None
 
-# ── フィルタ ──────────────────────────────────────────────────────────────────
-FILTER_SYSTEM = """\
-バンコク在住の日本人向け情報キュレーターとして記事を選別・分類する。
-JSONのみ返答。
 
+# ── Step1: フィルタ＋分類 ──────────────────────────────────────────────────
+FILTER_SYSTEM = """\
+バンコク在住の日本人向け情報キュレーター。JSONのみ返答。
 【除外】タイと無関係な海外スポーツ（欧州サッカー・NBA等）/商品紹介・書籍レビュー・広告/
-        タイと無関係な海外政治・社会/占い・宝くじ
-【掲載】タイ国内の政治・経済・社会・交通・生活/タイと他国の関係/
-        外国人観光客に関係する情報/タイに影響する国際ニュース
-分類: news_domestic（タイ国内）/ news_intl（他国との関係・国際情勢）
+        タイと無関係な海外政治・社会/占い・宝くじ/成人向けコンテンツ
+【掲載】タイ国内の政治・経済・社会・交通・生活/タイと他国の関係/外国人観光客向け情報/
+        タイに影響する国際ニュース
+分類: news_domestic（タイ国内）/ news_intl（国際・他国との関係）
 """
 
 def filter_and_classify(articles: list[dict]) -> list[dict]:
     if not articles:
         return []
     items = "\n\n---\n\n".join(
-        f'ID: {a["id"]}\nTITLE: {a["title_original"]}\nSUMMARY: {a["summary_original"]}'
+        f'ID: {a["id"]}\nTITLE: {a["title_original"]}\nSUMMARY: {a["summary_original"][:300]}'
         for a in articles
     )
-    prompt = f'以下の記事を選別・分類し、掲載すべき記事のみJSON配列で返してください。\n[{{"id":"...","category":"news_domestic または news_intl"}}, ...]\n\n記事:\n{items}'
+    prompt = (
+        "以下の記事を選別・分類し、掲載すべき記事のみJSON配列で返してください。\n"
+        '[{"id":"...","category":"news_domestic または news_intl"}, ...]\n\n'
+        f"記事:\n{items}"
+    )
     try:
         msg = client_instance.messages.create(
             model="claude-haiku-4-5-20251001", max_tokens=1024,
             system=FILTER_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = msg.content[0].text.strip()
-        if "```" in raw:
-            raw = raw.split("```")[1]
-            if raw.startswith("json"): raw = raw[4:]
+        raw = _clean_json(msg.content[0].text)
         results = json.loads(raw)
         allowed = {r["id"]: r["category"] for r in results}
         kept = []
@@ -59,77 +60,66 @@ def filter_and_classify(articles: list[dict]) -> list[dict]:
             print(f"    除外: {removed}件")
         return kept
     except Exception as e:
-        print(f"    フィルタエラー: {e} → 全件通過")
+        print(f"    フィルタエラー: {e} → 全件 news_domestic で通過")
         for a in articles:
             a["category"] = "news_domestic"
         return articles
 
 
-# ── TAT 複数イベント分離 ──────────────────────────────────────────────────────
+# ── Step2: TAT複数イベント分離 ────────────────────────────────────────────
 TAT_SYSTEM = """\
-タイのイベント情報抽出の専門家。
-記事本文から個々のイベントを全て抽出し、JSONのみ返す。
-固有名詞はカタカナ＋英語名。日付はISO 8601。
-イベントが多い場合も全て列挙すること。
+タイのイベント情報抽出の専門家。記事本文から個々のイベントを全て抽出しJSONのみ返す。
+固有名詞はカタカナ＋英語名。日付はISO 8601。イベントが多くても全て列挙すること。
 """
 
 def extract_tat_events(article: dict) -> list[dict]:
-    """TAT記事の本文からイベントを分離。本文が長い場合は分割して処理。"""
-    body = article.get("body_original") or article.get("summary_original", "")
-    if not body:
+    body = article.get("body_original") or ""
+    # 本文がない場合は要約で代替
+    text = body if len(body) > 200 else article.get("summary_original", "")
+    if not text:
         return []
 
-    # 本文を2000字ずつ分割して処理（イベントが多い記事に対応）
-    chunks = [body[i:i+2500] for i in range(0, len(body), 2500)]
+    chunks = [text[i:i+2500] for i in range(0, len(text), 2500)]
     all_events = []
-    seen_titles = set()
+    seen_titles: set[str] = set()
 
     for chunk_idx, chunk in enumerate(chunks):
         prompt = f"""\
-以下のTAT記事（パート{chunk_idx+1}/{len(chunks)}）からイベントを全て抽出してください。
+TAT記事（パート{chunk_idx+1}/{len(chunks)}）からイベントを全て抽出してください。
 元記事ID: "{article['id']}"
 
-JSON配列で返してください（イベントが無い場合は[]）:
-[
-  {{
-    "id": "元ID_{chunk_idx*20+1}",
-    "title_ja": "イベント名（日本語）",
-    "summary_ja": "2〜3文の説明（日本語）",
-    "event_start": "YYYY-MM-DD または YYYY-MM-DDTHH:MM:SS、不明ならnull",
-    "event_end": "同上、単日またはnull",
-    "event_venue": "開催場所（日本語・県名も含める）またはnull",
-    "event_admission": "無料 / 金額 / null"
-  }}
-]
+JSON配列（イベントなければ[]）:
+[{{
+  "id": "元ID_{chunk_idx*20+1}",
+  "title_ja": "イベント名（日本語）",
+  "summary_ja": "2〜3文の説明",
+  "event_start": "YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS or null",
+  "event_end": "同上 or null",
+  "event_venue": "開催場所（県名も含む）or null",
+  "event_admission": "無料 / 金額 / null"
+}}]
 
-記事本文:
+記事タイトル: {article['title_original']}
+本文:
 {chunk}
 """
         for attempt in range(2):
             try:
                 msg = client_instance.messages.create(
-                    model="claude-haiku-4-5-20251001",
-                    max_tokens=4096,   # 多くのイベントに対応
+                    model="claude-haiku-4-5-20251001", max_tokens=4096,
                     system=TAT_SYSTEM,
                     messages=[{"role": "user", "content": prompt}],
                 )
-                raw = msg.content[0].text.strip()
-                if "```" in raw:
-                    raw = raw.split("```")[1]
-                    if raw.startswith("json"): raw = raw[4:]
-                events = json.loads(raw)
-
+                events = json.loads(_clean_json(msg.content[0].text))
                 for ev in events:
                     title = ev.get("title_ja", "")
                     if not title or title in seen_titles:
                         continue
                     seen_titles.add(title)
-
                     suffix = f"_{len(all_events)+1}"
                     child_id = hashlib.sha256(
                         (article["id"] + suffix).encode()
                     ).hexdigest()[:16]
-
                     all_events.append({
                         **article,
                         "id":              child_id,
@@ -142,57 +132,80 @@ JSON配列で返してください（イベントが無い場合は[]）:
                         "event_admission": ev.get("event_admission"),
                         "translated":      True,
                         "split_from":      article["id"],
+                        "body_original":   "",  # 子記事には不要
                     })
                 break
-            except json.JSONDecodeError as e:
-                print(f"    JSON解析エラー (chunk {chunk_idx+1}, attempt {attempt+1}): {e}")
-                time.sleep(1)
             except Exception as e:
-                print(f"    エラー (chunk {chunk_idx+1}): {e}")
-                break
-
+                print(f"    エラー chunk{chunk_idx+1} attempt{attempt+1}: {e}")
+                time.sleep(1)
         if len(chunks) > 1:
             time.sleep(0.5)
 
     return all_events
 
 
-# ── 通常翻訳 ──────────────────────────────────────────────────────────────────
-TRANSLATE_SYSTEM = """\
-タイ語/英語→日本語翻訳・情報抽出。JSONのみ返答。
+# ── Step3: イベント・モール翻訳＋日程抽出 ────────────────────────────────
+EVENT_SYSTEM = """\
+タイ語/英語→日本語翻訳・イベント情報抽出の専門家。JSONのみ返答。
+固有名詞はカタカナ＋英語名。日付はISO 8601。通貨はバーツ表記。
+記事本文（body）がある場合は本文から日程・会場を優先して抽出すること。
+"""
+
+def translate_events(articles: list[dict]) -> None:
+    """イベント・モールイベントを翻訳＋日程抽出（本文があれば活用）"""
+    items = []
+    for a in articles:
+        body_part = f"\n本文:\n{a.get('body_original','')[:1500]}" if a.get("body_original") else ""
+        items.append(
+            f'ID: {a["id"]}\n'
+            f'TITLE: {a["title_original"]}\n'
+            f'SUMMARY: {a["summary_original"][:400]}'
+            f'{body_part}'
+        )
+    prompt = (
+        "以下のイベント記事を日本語に翻訳し、開催日程・会場・入場料も抽出してください。\n"
+        "JSON配列で返してください:\n"
+        '[{"id":"...","title_ja":"...","summary_ja":"2〜4文",'
+        '"event_start":"YYYY-MM-DD or null","event_end":"同 or null",'
+        '"event_venue":"日本語会場名 or null","event_admission":"無料/金額/null"}, ...]\n\n'
+        f"記事:\n{'\\n\\n---\\n\\n'.join(items)}"
+    )
+    _call_and_apply(articles, prompt, EVENT_SYSTEM)
+
+
+# ── Step4: ニュース翻訳 ────────────────────────────────────────────────────
+NEWS_SYSTEM = """\
+タイ語/英語→日本語翻訳の専門家。JSONのみ返答。
 固有名詞はカタカナ＋英語名。通貨はバーツ表記。要約は2〜4文。
 """
 
-def translate_batch(articles: list[dict]) -> None:
-    is_event = any(a.get("category") in ("events","mall_events") for a in articles)
-    items = []
-    for a in articles:
-        note = "\n※ event_start/end/venue/admission も抽出" if a.get("category") in ("events","mall_events") else ""
-        items.append(f'ID: {a["id"]}\nTITLE: {a["title_original"]}\nSUMMARY: {a["summary_original"]}{note}')
+def translate_news(articles: list[dict]) -> None:
+    items = [
+        f'ID: {a["id"]}\nTITLE: {a["title_original"]}\nSUMMARY: {a["summary_original"][:400]}'
+        for a in articles
+    ]
+    prompt = (
+        "以下のニュース記事を日本語に翻訳してください。\n"
+        'JSON配列: [{"id":"...","title_ja":"...","summary_ja":"..."}, ...]\n\n'
+        f"記事:\n{'\\n\\n---\\n\\n'.join(items)}"
+    )
+    _call_and_apply(articles, prompt, NEWS_SYSTEM)
 
-    fmt = ('{"id":"...","title_ja":"...","summary_ja":"...",'
-           '"event_start":"...or null","event_end":"...or null",'
-           '"event_venue":"...or null","event_admission":"...or null"}'
-           if is_event else '{"id":"...","title_ja":"...","summary_ja":"..."}')
 
-    prompt = f'以下の記事を日本語に翻訳しJSON配列で返してください。\n形式: [{fmt}, ...]\n\n記事:\n{"\\n\\n---\\n\\n".join(items)}'
-
+# ── 共通API呼び出し ─────────────────────────────────────────────────────────
+def _call_and_apply(articles: list[dict], prompt: str, system: str) -> None:
     for attempt in range(3):
         try:
             msg = client_instance.messages.create(
                 model="claude-haiku-4-5-20251001", max_tokens=2048,
-                system=TRANSLATE_SYSTEM,
+                system=system,
                 messages=[{"role": "user", "content": prompt}],
             )
-            raw = msg.content[0].text.strip()
-            if "```" in raw:
-                raw = raw.split("```")[1]
-                if raw.startswith("json"): raw = raw[4:]
-            results = {r["id"]: r for r in json.loads(raw)}
+            results = {r["id"]: r for r in json.loads(_clean_json(msg.content[0].text))}
             for a in articles:
                 r = results.get(a["id"])
                 if r:
-                    a["title_ja"]        = r.get("title_ja", a["title_original"])
+                    a["title_ja"]        = r.get("title_ja", a.get("title_original", ""))
                     a["summary_ja"]      = r.get("summary_ja", "")
                     a["event_start"]     = r.get("event_start", a.get("event_start"))
                     a["event_end"]       = r.get("event_end",   a.get("event_end"))
@@ -201,16 +214,25 @@ def translate_batch(articles: list[dict]) -> None:
                     a["translated"]      = True
             return
         except json.JSONDecodeError as e:
-            print(f"    JSON解析エラー (attempt {attempt+1}): {e}")
+            print(f"    JSON解析エラー attempt{attempt+1}: {e}")
             time.sleep(2)
         except anthropic.RateLimitError:
-            time.sleep(10 * (attempt+1))
+            time.sleep(10 * (attempt + 1))
         except Exception as e:
             print(f"    APIエラー: {e}")
             time.sleep(3)
 
 
-# ── メイン ────────────────────────────────────────────────────────────────────
+def _clean_json(text: str) -> str:
+    text = text.strip()
+    if "```" in text:
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    return text.strip()
+
+
+# ── メイン ────────────────────────────────────────────────────────────────
 def main():
     global client_instance
     print("=== translate.py 開始 ===")
@@ -224,7 +246,7 @@ def main():
     articles: list[dict] = json.loads(ARTICLES_FILE.read_text(encoding="utf-8"))
     existing_ids = {a["id"] for a in articles}
 
-    # ja_news: タイトル・要約をそのまま転記してスキップ
+    # ja_news: そのまま転記
     ja_done = 0
     for a in articles:
         if a.get("lang") == "ja" and not a.get("translated"):
@@ -235,8 +257,9 @@ def main():
     if ja_done:
         print(f"日本語記事スキップ: {ja_done}件")
 
-    # Step1: news_pending フィルタ＋分類
-    pending = [a for a in articles if a.get("category") == "news_pending" and not a.get("translated")]
+    # Step1: フィルタ＋分類
+    pending = [a for a in articles
+               if a.get("category") == "news_pending" and not a.get("translated")]
     print(f"\nStep1: news_pending フィルタ＋分類 ({len(pending)}件)")
     for i in range(0, len(pending), 10):
         batch = pending[i:i+10]
@@ -244,66 +267,90 @@ def main():
         kept = filter_and_classify(batch)
         print(f"{len(kept)}件通過")
         time.sleep(1)
+    # 除外された記事を無効化
     for a in articles:
         if a.get("category") == "news_pending" and not a.get("translated"):
             a["category"]   = "news_filtered"
             a["translated"] = True
 
-    # Step2: TAT記事を複数イベントに分離
+    # Step2: TAT複数イベント分離
     tat_articles = [
         a for a in articles
-        if a.get("category") == "events"
-        and a.get("source_id") == "tat_events"
-        and not a.get("translated")
+        if a.get("source_id") == "tat_events" and not a.get("translated")
     ]
     print(f"\nStep2: TAT複数イベント分離 ({len(tat_articles)}件の記事)")
-    all_children = []
+    if not tat_articles:
+        print("  ※ TATイベント記事なし（RSSが取得できていない可能性あり）")
+    all_children: list[dict] = []
     for a in tat_articles:
-        title_short = a["title_original"][:50]
-        print(f"  分離中: {title_short}…", end=" ", flush=True)
+        print(f"  分離中: {a['title_original'][:50]}…", end=" ", flush=True)
         children = extract_tat_events(a)
         print(f"→ {len(children)}件のイベント")
         all_children.extend(children)
         a["translated"] = True
         time.sleep(1)
-
     for child in all_children:
         if child["id"] not in existing_ids:
             articles.append(child)
             existing_ids.add(child["id"])
     print(f"  子イベント合計: {len(all_children)}件")
 
-    # Step3: events/mall_events 翻訳
-    to_translate = [a for a in articles
-                    if a.get("category") in ("events","mall_events") and not a.get("translated")]
-    print(f"\nStep3: イベント翻訳 ({len(to_translate)}件)")
-    for i in range(0, len(to_translate), BATCH_SIZE):
-        batch = to_translate[i:i+BATCH_SIZE]
+    # Step3: モールイベント翻訳（本文から日程抽出）
+    mall_todo = [a for a in articles
+                 if a.get("category") == "mall_events" and not a.get("translated")]
+    print(f"\nStep3: モールイベント翻訳 ({len(mall_todo)}件)")
+    for i in range(0, len(mall_todo), BATCH_SIZE):
+        batch = mall_todo[i:i+BATCH_SIZE]
         print(f"  バッチ {i//BATCH_SIZE+1}: {len(batch)}件 →", end=" ", flush=True)
-        translate_batch(batch)
+        translate_events(batch)
         print(f"{sum(1 for a in batch if a.get('translated'))}件完了")
-        if i + BATCH_SIZE < len(to_translate): time.sleep(1)
+        if i + BATCH_SIZE < len(mall_todo):
+            time.sleep(1)
 
-    # Step1b: ニュース翻訳
+    # Step3b: events単体（TATの子記事以外）
+    ev_todo = [a for a in articles
+               if a.get("category") == "events"
+               and not a.get("translated")
+               and not a.get("split_from")]
+    if ev_todo:
+        print(f"\nStep3b: events単体翻訳 ({len(ev_todo)}件)")
+        for i in range(0, len(ev_todo), BATCH_SIZE):
+            batch = ev_todo[i:i+BATCH_SIZE]
+            print(f"  バッチ {i//BATCH_SIZE+1}: {len(batch)}件 →", end=" ", flush=True)
+            translate_events(batch)
+            print(f"{sum(1 for a in batch if a.get('translated'))}件完了")
+            if i + BATCH_SIZE < len(ev_todo):
+                time.sleep(1)
+
+    # Step4: ニュース翻訳
     news_todo = [a for a in articles
-                 if a.get("category") in ("news_domestic","news_intl") and not a.get("translated")]
-    print(f"\nStep1b: ニュース翻訳 ({len(news_todo)}件)")
+                 if a.get("category") in ("news_domestic", "news_intl")
+                 and not a.get("translated")]
+    print(f"\nStep4: ニュース翻訳 ({len(news_todo)}件)")
     for i in range(0, len(news_todo), BATCH_SIZE):
         batch = news_todo[i:i+BATCH_SIZE]
         print(f"  バッチ {i//BATCH_SIZE+1}: {len(batch)}件 →", end=" ", flush=True)
-        translate_batch(batch)
+        translate_news(batch)
         print(f"{sum(1 for a in batch if a.get('translated'))}件完了")
-        if i + BATCH_SIZE < len(news_todo): time.sleep(1)
+        if i + BATCH_SIZE < len(news_todo):
+            time.sleep(1)
 
-    # news_filtered を除去してソート
+    # 除外記事を取り除いてソート
     articles = [a for a in articles if a.get("category") != "news_filtered"]
-    articles.sort(key=lambda a: a.get("published_at",""), reverse=True)
+    articles.sort(key=lambda a: a.get("published_at", ""), reverse=True)
 
-    ARTICLES_FILE.write_text(json.dumps(articles, ensure_ascii=False, indent=2), encoding="utf-8")
-    cats = {}
+    ARTICLES_FILE.write_text(
+        json.dumps(articles, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    cats: dict[str, int] = {}
     for a in articles:
-        cats[a.get("category","?")] = cats.get(a.get("category","?"),0) + 1
+        cats[a.get("category", "?")] = cats.get(a.get("category", "?"), 0) + 1
+    ev_with_date = sum(
+        1 for a in articles
+        if a.get("category") in ("events", "mall_events") and a.get("event_start")
+    )
     print(f"\n保存完了: {len(articles)}件 {cats}")
+    print(f"カレンダー表示可能イベント: {ev_with_date}件")
 
 
 if __name__ == "__main__":

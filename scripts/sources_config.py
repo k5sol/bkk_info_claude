@@ -1,7 +1,7 @@
 """情報収集ソース設定"""
 
 SOURCES = [
-    # ── 日本語サイト（翻訳不要・フィルタ不要） ──────────────────────
+    # ── 日本語サイト ─────────────────────────────────────────────────
     {
         "id": "thaich_news",
         "name": "タイランドハイパーリンクス",
@@ -21,7 +21,7 @@ SOURCES = [
         "lang": "ja",
     },
 
-    # ── タイ語ニュース（国内/国際をClaudeが分類、無関係は除外） ─────
+    # ── タイ語ニュース ────────────────────────────────────────────────
     {
         "id": "thairath_general",
         "name": "ไทยรัฐ（タイラット）",
@@ -77,70 +77,63 @@ SOURCES = [
         "lang": "th",
     },
 
-    # ── TAT公式イベント（英語・本文取得して複数イベント分離） ────────
+    # ── TAT公式イベント（本文も取得して複数イベント分離） ───────────
+    # RSSが取得できない場合のフォールバックとして複数URLを設定
     {
         "id": "tat_events",
         "name": "TAT公式イベント",
-        "type": "rss_fulltext",          # 本文も取得する
+        "type": "rss_fulltext",
         "url": "https://www.tatnews.org/category/thailand-events-festivals/feed/",
         "category": "events",
-        "max_items": 15,
+        "max_items": 10,
         "lang": "en",
     },
 
-    # ── モールイベント（Google ニュース検索RSS） ──────────────────────
+    # ── モールイベント（Googleニュース検索RSS + 本文取得） ─────────
+    # Googleニュース経由は要約が短いため本文も取得する
     {
         "id": "iconsiam_gnews",
         "name": "ICONSIAM イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=ICONSIAM+event+OR+%E0%B8%AD%E0%B8%B2%E0%B8%84%E0%B8%B2%E0%B8%A3+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=ICONSIAM+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
-        "max_items": 10,
+        "max_items": 8,
         "lang": "th",
     },
     {
         "id": "centralworld_gnews",
         "name": "CentralWorld イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=CentralWorld+event+OR+%E0%B9%80%E0%B8%8B%E0%B9%87%E0%B8%99%E0%B8%97%E0%B8%A3%E0%B8%B1%E0%B8%A5%E0%B9%80%E0%B8%A7%E0%B8%B4%E0%B8%A5%E0%B8%94%E0%B9%8C+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=CentralWorld+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
-        "max_items": 10,
+        "max_items": 8,
         "lang": "th",
     },
     {
         "id": "siamparagon_gnews",
         "name": "Siam Paragon イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=Siam+Paragon+event+OR+%E0%B8%AA%E0%B8%A2%E0%B8%B2%E0%B8%A1%E0%B8%9E%E0%B8%B2%E0%B8%A3%E0%B8%B2%E0%B8%81%E0%B8%AD%E0%B8%99+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=Siam+Paragon+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
-        "max_items": 10,
+        "max_items": 8,
         "lang": "th",
     },
     {
         "id": "emquartier_gnews",
         "name": "EmQuartier / EmSphere イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=EmQuartier+OR+EmSphere+event+OR+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=EmQuartier+EmSphere+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
-        "max_items": 10,
-        "lang": "th",
-    },
-    {
-        "id": "terminal21_gnews",
-        "name": "Terminal 21 イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=Terminal+21+Bangkok+event+OR+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
-        "category": "mall_events",
-        "max_items": 10,
+        "max_items": 8,
         "lang": "th",
     },
     {
         "id": "onebangkok_gnews",
         "name": "One Bangkok イベント",
-        "type": "rss",
-        "url": "https://news.google.com/rss/search?q=%22One+Bangkok%22+event+OR+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1&hl=th&gl=TH&ceid=TH:th",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=%22One+Bangkok%22+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
-        "max_items": 10,
+        "max_items": 8,
         "lang": "th",
     },
 ]

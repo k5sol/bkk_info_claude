@@ -22,7 +22,7 @@ ARTICLES_FILE = DATA_DIR / "articles.json"
 BATCH_SIZE = 5
 
 SYSTEM_PROMPT = """\
-あなたはタイ語→日本語の翻訳者です。
+あなたはタイ語→日本語の翻訳・情報抽出の専門家です。
 バンコク在住の日本人向けに、ニュース・イベント情報を自然な日本語に翻訳します。
 
 ルール:
@@ -36,25 +36,43 @@ SYSTEM_PROMPT = """\
 def build_batch_prompt(articles: list[dict]) -> str:
     items = []
     for a in articles:
+        is_event = a.get("category") in ("events", "mall_events")
+        event_note = (
+            "\n※ このイベント記事からは開催日時・場所・入場料も抽出してください。"
+            if is_event else ""
+        )
         items.append(
             f"ID: {a['id']}\n"
+            f"CATEGORY: {a.get('category', 'news')}\n"
             f"TITLE: {a['title_original']}\n"
             f"SUMMARY: {a['summary_original']}"
+            f"{event_note}"
         )
     batch_text = "\n\n---\n\n".join(items)
 
     return f"""\
-以下の記事を日本語に翻訳してください。
-各記事のIDを必ず保持し、以下のJSON配列形式で返してください：
+以下の記事を日本語に翻訳・情報抽出してください。
+各記事のIDを必ず保持し、以下のJSON配列形式で返してください。
 
-[
-  {{
-    "id": "記事ID",
-    "title_ja": "日本語タイトル",
-    "summary_ja": "日本語要約（2〜4文）"
-  }},
-  ...
-]
+ニュース記事の場合:
+{{
+  "id": "記事ID",
+  "title_ja": "日本語タイトル",
+  "summary_ja": "日本語要約（2〜4文）"
+}}
+
+イベント記事（category が events または mall_events）の場合は追加フィールドも含めてください:
+{{
+  "id": "記事ID",
+  "title_ja": "日本語タイトル",
+  "summary_ja": "日本語要約（2〜4文）",
+  "event_start": "ISO 8601形式の開催開始日時（例: 2026-06-14T10:00:00）。不明な場合は日付のみ（例: 2026-06-14）",
+  "event_end": "ISO 8601形式の開催終了日時。単日イベントや不明な場合はnull",
+  "event_venue": "開催場所の日本語名（例: アイコンサイアム 1Fリバーパーク）",
+  "event_admission": "入場料（例: 無料、500バーツ〜）。不明な場合はnull"
+}}
+
+開催日時が記事から読み取れない場合は event_start をnullにしてください。
 
 記事:
 {batch_text}
@@ -139,6 +157,12 @@ def main():
                 r = results[article["id"]]
                 article["title_ja"]   = r.get("title_ja",   article["title_original"])
                 article["summary_ja"] = r.get("summary_ja", "")
+                # イベント専用フィールド
+                if article.get("category") in ("events", "mall_events"):
+                    article["event_start"]     = r.get("event_start")
+                    article["event_end"]       = r.get("event_end")
+                    article["event_venue"]     = r.get("event_venue")
+                    article["event_admission"] = r.get("event_admission")
                 article["translated"] = True
                 translated_count += 1
 

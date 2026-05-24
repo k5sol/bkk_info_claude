@@ -4,332 +4,410 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BKK Journal — バンコク情報キュレーション</title>
-  <meta name="description" content="バンコクのニュース・イベント・ショッピングモール情報をタイ語ソースから日本語でお届け">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@400;500&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --gold:    #C9A84C;
-      --gold-lt: #F0D98A;
-      --red:     #C0392B;
-      --ink:     #1A1714;
-      --ink-mid: #3D3730;
-      --ink-lt:  #7A6F65;
-      --paper:   #F7F3ED;
-      --paper-lt:#FDFAF6;
-      --border:  #DDD5C8;
-      --tag-news:   #C0392B;
-      --tag-events: #1A6B5A;
-      --tag-mall:   #9B4F96;
+    :root{
+      --gold:#C9A84C;--gold-lt:#F0D98A;--red:#C0392B;
+      --ink:#1A1714;--ink-mid:#3D3730;--ink-lt:#7A6F65;
+      --paper:#F7F3ED;--paper-lt:#FDFAF6;--border:#DDD5C8;
+      --tag-news:#C0392B;--tag-events:#1A6B5A;--tag-mall:#9B4F96;
     }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.7}
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    /* Header */
+    header{background:var(--ink);border-bottom:3px solid var(--gold);padding:0 24px;position:sticky;top:0;z-index:100}
+    .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px}
+    .site-title{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;color:var(--gold);text-decoration:none;letter-spacing:.04em}
+    .site-title span{color:#fff;font-weight:400;font-size:13px;margin-left:10px;opacity:.7;vertical-align:middle}
+    .updated{font-size:11px;color:#888;font-family:monospace}
 
-    body {
-      font-family: 'Noto Sans JP', sans-serif;
-      background: var(--paper);
-      color: var(--ink);
-      font-size: 15px;
-      line-height: 1.7;
-      min-height: 100vh;
-    }
+    /* Tab bar */
+    .tab-bar{background:var(--paper-lt);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:60px;z-index:99}
+    .tab-inner{max-width:1200px;margin:0 auto;display:flex}
+    .tab-btn{font-size:13px;padding:13px 22px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;color:var(--ink-lt);transition:color .15s,border-color .15s;white-space:nowrap;font-family:'Noto Sans JP',sans-serif}
+    .tab-btn:hover{color:var(--ink)}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:500}
 
-    /* ── ヘッダー ── */
-    header {
-      background: var(--ink);
-      border-bottom: 3px solid var(--gold);
-      padding: 0 24px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .header-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 60px;
-    }
-    .site-title {
-      font-family: 'Noto Serif JP', serif;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--gold);
-      letter-spacing: 0.04em;
-      text-decoration: none;
-    }
-    .site-title span {
-      color: #fff;
-      font-weight: 400;
-      font-size: 13px;
-      margin-left: 10px;
-      opacity: 0.7;
-      vertical-align: middle;
-    }
-    .updated {
-      font-size: 11px;
-      color: #888;
-      font-family: monospace;
-    }
+    /* Views */
+    main{max-width:1200px;margin:0 auto;padding:28px 24px 64px}
+    .view{display:none}.view.active{display:block}
 
-    /* ── フィルタータブ ── */
-    .filter-bar {
-      background: var(--paper-lt);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px;
-      position: sticky;
-      top: 60px;
-      z-index: 99;
-    }
-    .filter-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: flex;
-      gap: 0;
-    }
-    .filter-btn {
-      font-family: 'Noto Sans JP', sans-serif;
-      font-size: 13px;
-      padding: 12px 20px;
-      background: none;
-      border: none;
-      border-bottom: 3px solid transparent;
-      cursor: pointer;
-      color: var(--ink-lt);
-      transition: color .15s, border-color .15s;
-      white-space: nowrap;
-    }
-    .filter-btn:hover { color: var(--ink); }
-    .filter-btn.active {
-      color: var(--gold);
-      border-bottom-color: var(--gold);
-      font-weight: 500;
-    }
+    /* Card grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
+    .card{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,23,20,.12)}
+    .card-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--border)}
+    .card-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#EBE3D8,#D9CEBF);display:flex;align-items:center;justify-content:center;font-size:28px}
+    .card-body{padding:16px 18px 20px;display:flex;flex-direction:column;flex:1}
+    .card-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+    .tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:2px;color:#fff;letter-spacing:.05em}
+    .tag-news{background:var(--tag-news)}
+    .tag-events{background:var(--tag-events)}
+    .tag-mall_events{background:var(--tag-mall)}
+    .card-date{font-size:11px;color:var(--ink-lt)}
+    .card-source{font-size:10px;color:var(--ink-lt);margin-left:auto;font-family:'Sarabun',sans-serif;opacity:.8}
+    .card-title{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;line-height:1.5;margin-bottom:8px}
+    .card-summary{font-size:13px;color:var(--ink-mid);line-height:1.7;flex:1}
+    .card-footer{margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+    .card-link{font-size:12px;font-weight:500;color:var(--gold);text-decoration:none;border-bottom:1px solid var(--gold-lt)}
+    .card-link:hover{color:var(--red)}
+    .card-link::after{content:" →"}
+    .event-date-badge{font-size:11px;color:var(--tag-events);background:#E8F5F1;padding:2px 8px;border-radius:2px}
 
-    /* ── メインレイアウト ── */
-    main {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 32px 24px 64px;
-    }
+    /* ── Calendar View ── */
+    .cal-layout{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+    @media(max-width:860px){.cal-layout{grid-template-columns:1fr}}
+    .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .cal-month{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700}
+    .cal-navs{display:flex;gap:6px}
+    .cal-navs button{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 13px;cursor:pointer;font-size:12px;color:var(--ink-mid);font-family:'Noto Sans JP',sans-serif}
+    .cal-navs button:hover{background:var(--border)}
+    .cal-box{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:var(--ink)}
+    .cal-dow span{color:var(--gold-lt);font-size:11px;font-weight:500;text-align:center;padding:7px 0}
+    .cal-dow span:first-child{color:#e88;}
+    .cal-dow span:last-child{color:#88e;}
+    .cal-cells{display:grid;grid-template-columns:repeat(7,1fr)}
+    .cell{min-height:74px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:5px 4px;position:relative}
+    .cell:nth-child(7n){border-right:none}
+    .cell.other{background:#f0ebe4;opacity:.55}
+    .cell.today{background:#FFF8E8}
+    .cell.has-ev{cursor:pointer}.cell.has-ev:hover{background:#F5EFE6}
+    .cell-num{font-size:12px;color:var(--ink-lt);display:block;margin-bottom:3px}
+    .cell.today .cell-num{color:var(--gold);font-weight:700}
+    .cell.today .cell-num::after{content:'●';font-size:6px;margin-left:3px;vertical-align:middle}
+    .cell-sun .cell-num{color:#c55}
+    .cell-sat .cell-num{color:#55c}
+    .ev-pill{display:block;font-size:9px;padding:2px 4px;border-radius:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;cursor:pointer;line-height:1.4}
+    .ev-pill.ev-events{background:var(--tag-events)}
+    .ev-pill.ev-mall_events{background:var(--tag-mall)}
+    .ev-more{font-size:9px;color:var(--ink-lt);margin-top:2px;display:block}
 
-    /* ── カードグリッド ── */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 24px;
-    }
+    /* Side panel */
+    .side-panel{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;padding:18px;position:sticky;top:116px}
+    .side-panel h3{font-family:'Noto Serif JP',serif;font-size:15px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:9px}
+    .sp-item{padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .1s}
+    .sp-item:last-child{border-bottom:none}
+    .sp-item:hover{opacity:.7}
+    .sp-tag{font-size:9px;padding:1px 6px;border-radius:2px;color:#fff;display:inline-block;margin-bottom:4px}
+    .sp-date{font-size:11px;color:var(--ink-lt);margin-bottom:3px}
+    .sp-title{font-size:13px;font-weight:500;line-height:1.4;color:var(--ink)}
+    .sp-venue{font-size:11px;color:var(--ink-lt);margin-top:2px}
+    .sp-empty{font-size:13px;color:var(--ink-lt);text-align:center;padding:20px 0}
 
-    /* ── 記事カード ── */
-    .card {
-      background: var(--paper-lt);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: transform .15s, box-shadow .15s;
-    }
-    .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(26,23,20,.12);
-    }
+    /* Modal */
+    .modal-bg{position:fixed;inset:0;background:rgba(26,23,20,.55);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+    .modal-bg.open{display:flex}
+    .modal{background:var(--paper-lt);border-radius:6px;max-width:540px;width:100%;max-height:80vh;overflow-y:auto;padding:26px;position:relative}
+    .modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink-lt);line-height:1}
+    .modal-close:hover{color:var(--ink)}
+    .m-tag{font-size:11px;padding:2px 8px;border-radius:2px;color:#fff;display:inline-block;margin-bottom:10px}
+    .m-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;line-height:1.5;margin-bottom:12px}
+    .m-meta{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px;color:var(--ink-mid)}
+    .m-meta span{display:flex;gap:6px}
+    .m-summary{font-size:14px;line-height:1.8;color:var(--ink-mid);margin-bottom:16px}
+    .m-link{font-size:13px;font-weight:500;color:var(--gold);border-bottom:1px solid var(--gold-lt);text-decoration:none}
+    .m-link:hover{color:var(--red)}
 
-    .card-image {
-      width: 100%;
-      aspect-ratio: 16/9;
-      object-fit: cover;
-      background: var(--border);
-      display: block;
-    }
-    .card-image-placeholder {
-      width: 100%;
-      aspect-ratio: 16/9;
-      background: linear-gradient(135deg, #EBE3D8 0%, #D9CEBF 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      color: var(--border);
-    }
-
-    .card-body {
-      padding: 16px 18px 20px;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-    }
-
-    .card-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .tag {
-      font-size: 10px;
-      font-weight: 500;
-      padding: 2px 7px;
-      border-radius: 2px;
-      color: #fff;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-    .tag-news        { background: var(--tag-news); }
-    .tag-events      { background: var(--tag-events); }
-    .tag-mall_events { background: var(--tag-mall); }
-
-    .card-date {
-      font-size: 11px;
-      color: var(--ink-lt);
-    }
-    .card-source {
-      font-size: 10px;
-      color: var(--ink-lt);
-      margin-left: auto;
-      font-family: 'Sarabun', sans-serif;
-      opacity: 0.8;
-    }
-
-    .card-title {
-      font-family: 'Noto Serif JP', serif;
-      font-size: 15px;
-      font-weight: 700;
-      line-height: 1.5;
-      color: var(--ink);
-      margin-bottom: 8px;
-    }
-    .card-summary {
-      font-size: 13px;
-      color: var(--ink-mid);
-      line-height: 1.7;
-      flex: 1;
-    }
-
-    .card-footer {
-      margin-top: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .card-link {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--gold);
-      text-decoration: none;
-      border-bottom: 1px solid var(--gold-lt);
-      padding-bottom: 1px;
-      transition: color .15s;
-    }
-    .card-link:hover { color: var(--red); }
-    .card-link::after { content: " →"; }
-
-    /* ── 空のカテゴリ ── */
-    .empty-msg {
-      text-align: center;
-      color: var(--ink-lt);
-      font-size: 14px;
-      padding: 48px 0;
-    }
-
-    /* ── フッター ── */
-    footer {
-      text-align: center;
-      padding: 24px;
-      font-size: 11px;
-      color: var(--ink-lt);
-      border-top: 1px solid var(--border);
-    }
-
-    /* ── hidden ── */
-    .card[data-category][data-hidden] { display: none; }
-
-    @media (max-width: 600px) {
-      .grid { grid-template-columns: 1fr; }
-      .site-title span { display: none; }
-    }
+    footer{text-align:center;padding:22px;font-size:11px;color:var(--ink-lt);border-top:1px solid var(--border)}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}.site-title span{display:none}}
   </style>
 </head>
 <body>
 
 <header>
   <div class="header-inner">
-    <a class="site-title" href="#">
-      BKK Journal<span>バンコク情報キュレーション</span>
-    </a>
+    <a class="site-title" href="#">BKK Journal<span>バンコク情報キュレーション</span></a>
     <div class="updated">更新: {{ updated_at }}</div>
   </div>
 </header>
 
-<div class="filter-bar">
-  <div class="filter-inner">
-    <button class="filter-btn active" data-filter="all" onclick="filterCards('all', this)">
-      すべて（{{ total }}）
-    </button>
-    {% for cat, label in category_labels.items() %}
-    {% if by_category.get(cat) %}
-    <button class="filter-btn" data-filter="{{ cat }}" onclick="filterCards('{{ cat }}', this)">
-      {{ label }}（{{ by_category[cat]|length }}）
-    </button>
-    {% endif %}
-    {% endfor %}
+<div class="tab-bar">
+  <div class="tab-inner">
+    <button class="tab-btn active" onclick="switchTab('news',this)">📰 ニュース（{{ news_articles|length }}）</button>
+    <button class="tab-btn" onclick="switchTab('events',this)">🎉 イベント・祭り（{{ event_articles|length }}）</button>
+    <button class="tab-btn" onclick="switchTab('mall',this)">🏬 モールイベント（{{ mall_articles|length }}）</button>
+    <button class="tab-btn" onclick="switchTab('calendar',this)">📅 カレンダー</button>
   </div>
 </div>
 
 <main>
-  <div class="grid" id="card-grid">
-    {% for article in articles %}
-    <article class="card" data-category="{{ article.category }}">
-      {% if article.image_url %}
-      <img class="card-image" src="{{ article.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
-      {% else %}
-      <div class="card-image-placeholder">🇹🇭</div>
-      {% endif %}
 
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="tag tag-{{ article.category }}">
-            {{ category_labels.get(article.category, article.category) }}
-          </span>
-          <span class="card-date">{{ article.date_ja }}</span>
-          <span class="card-source">{{ article.source_name }}</span>
+  {# ── ニュースタブ ── #}
+  <div class="view active" id="view-news">
+    <div class="grid">
+      {% for a in news_articles %}
+      <article class="card">
+        {% if a.image_url %}<img class="card-img" src="{{ a.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+        {% else %}<div class="card-ph">🇹🇭</div>{% endif %}
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">{{ a.date_ja }}</span>
+            <span class="card-source">{{ a.source_name }}</span>
+          </div>
+          <h2 class="card-title">{{ a.title_ja if a.translated else a.title_original }}</h2>
+          <p class="card-summary">{{ a.summary_ja if a.translated else a.summary_original }}</p>
+          <div class="card-footer">
+            <a class="card-link" href="{{ a.url }}" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
         </div>
+      </article>
+      {% else %}<p style="color:var(--ink-lt);font-size:14px">記事がありません</p>{% endfor %}
+    </div>
+  </div>
 
-        <h2 class="card-title">
-          {{ article.title_ja if article.translated else article.title_original }}
-        </h2>
+  {# ── イベント・祭りタブ ── #}
+  <div class="view" id="view-events">
+    <div class="grid">
+      {% for a in event_articles %}
+      <article class="card">
+        {% if a.image_url %}<img class="card-img" src="{{ a.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+        {% else %}<div class="card-ph">🎉</div>{% endif %}
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-events">イベント・祭り</span>
+            <span class="card-date">{{ a.date_ja }}</span>
+            <span class="card-source">{{ a.source_name }}</span>
+          </div>
+          <h2 class="card-title">{{ a.title_ja if a.translated else a.title_original }}</h2>
+          <p class="card-summary">{{ a.summary_ja if a.translated else a.summary_original }}</p>
+          <div class="card-footer">
+            <a class="card-link" href="{{ a.url }}" target="_blank" rel="noopener">元記事（タイ語）</a>
+            {% if a.event_start %}<span class="event-date-badge">📅 {{ a.event_start[:10] }}{% if a.event_end %} 〜 {{ a.event_end[:10] }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+      </article>
+      {% else %}<p style="color:var(--ink-lt);font-size:14px">記事がありません</p>{% endfor %}
+    </div>
+  </div>
 
-        <p class="card-summary">
-          {{ article.summary_ja if article.translated else article.summary_original }}
-        </p>
+  {# ── モールイベントタブ ── #}
+  <div class="view" id="view-mall">
+    <div class="grid">
+      {% for a in mall_articles %}
+      <article class="card">
+        {% if a.image_url %}<img class="card-img" src="{{ a.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+        {% else %}<div class="card-ph">🏬</div>{% endif %}
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-mall_events">モールイベント</span>
+            <span class="card-date">{{ a.date_ja }}</span>
+            <span class="card-source">{{ a.source_name }}</span>
+          </div>
+          <h2 class="card-title">{{ a.title_ja if a.translated else a.title_original }}</h2>
+          <p class="card-summary">{{ a.summary_ja if a.translated else a.summary_original }}</p>
+          <div class="card-footer">
+            <a class="card-link" href="{{ a.url }}" target="_blank" rel="noopener">元記事（タイ語）</a>
+            {% if a.event_start %}<span class="event-date-badge">📅 {{ a.event_start[:10] }}{% if a.event_end %} 〜 {{ a.event_end[:10] }}{% endif %}</span>{% endif %}
+          </div>
+        </div>
+      </article>
+      {% else %}<p style="color:var(--ink-lt);font-size:14px">記事がありません</p>{% endfor %}
+    </div>
+  </div>
 
-        <div class="card-footer">
-          <a class="card-link" href="{{ article.url }}" target="_blank" rel="noopener">
-            元記事（タイ語）
-          </a>
+  {# ── カレンダータブ（イベントのみ） ── #}
+  <div class="view" id="view-calendar">
+    <div class="cal-layout">
+      <div>
+        <div class="cal-head">
+          <div class="cal-month" id="cal-label"></div>
+          <div class="cal-navs">
+            <button onclick="moveCal(-1)">‹ 前月</button>
+            <button onclick="moveCal(0)">今月</button>
+            <button onclick="moveCal(1)">次月 ›</button>
+          </div>
+        </div>
+        <div class="cal-box">
+          <div class="cal-dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+          <div class="cal-cells" id="cal-cells"></div>
         </div>
       </div>
-    </article>
-    {% else %}
-    <p class="empty-msg">記事がまだありません。次回の更新をお待ちください。</p>
-    {% endfor %}
+      <div>
+        <div class="side-panel">
+          <h3 id="sp-title">今月のイベント</h3>
+          <div id="sp-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
+
 </main>
 
-<footer>
-  BKK Journal — タイ語ソースを Claude API で日本語化 &nbsp;|&nbsp;
-  自動更新: 6時間ごと
-</footer>
+{# ── モーダル ── #}
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="m-tag" class="m-tag"></div>
+    <div id="m-title" class="m-title"></div>
+    <div id="m-meta" class="m-meta"></div>
+    <div id="m-summary" class="m-summary"></div>
+    <a id="m-link" class="m-link" target="_blank" rel="noopener">元記事を読む →</a>
+  </div>
+</div>
+
+<footer>BKK Journal — タイ語ソースを Claude API で日本語化 &nbsp;|&nbsp; 自動更新: 6時間ごと</footer>
 
 <script>
-function filterCards(cat, btn) {
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+// ─── データ（autoescape回避のためsafeフィルタで埋め込む）───────────────
+const EV_ARTICLES = {{ ev_json | safe }};
+const CAT_COLORS  = {events:'#1A6B5A', mall_events:'#9B4F96'};
+const CAT_NAMES   = {events:'イベント・祭り', mall_events:'モールイベント'};
+
+// ─── タブ切り替え ─────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
   btn.classList.add('active');
-  document.querySelectorAll('.card[data-category]').forEach(card => {
-    const show = cat === 'all' || card.dataset.category === cat;
-    card.toggleAttribute('data-hidden', !show);
+  if (id === 'calendar') renderCal();
+}
+
+// ─── カレンダー ───────────────────────────────────────────────────
+let cY, cM;
+(function(){const n=new Date();cY=n.getFullYear();cM=n.getMonth();})();
+
+function moveCal(d){
+  if(d===0){const n=new Date();cY=n.getFullYear();cM=n.getMonth();}
+  else{cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}}
+  renderCal();
+}
+
+function evByDay(){
+  const map={};
+  EV_ARTICLES.forEach(a=>{
+    if(!a.event_start) return;
+    const s=new Date(a.event_start);
+    if(isNaN(s)) return;
+    const e=a.event_end ? new Date(a.event_end) : s;
+    const lo=new Date(cY,cM,1), hi=new Date(cY,cM+1,0);
+    let cur=new Date(Math.max(s,lo));
+    const end2=new Date(Math.min(e,hi));
+    while(cur<=end2){
+      const k=cur.getDate();
+      (map[k]=map[k]||[]).push(a);
+      cur.setDate(cur.getDate()+1);
+    }
   });
+  return map;
+}
+
+function renderCal(){
+  const MN=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('cal-label').textContent=cY+'年 '+MN[cM];
+  const today=new Date();
+  const fd=new Date(cY,cM,1).getDay();
+  const dim=new Date(cY,cM+1,0).getDate();
+  const dip=new Date(cY,cM,0).getDate();
+  const map=evByDay();
+  const grid=document.getElementById('cal-cells');
+  grid.innerHTML='';
+  const total=Math.ceil((fd+dim)/7)*7;
+  for(let i=0;i<total;i++){
+    let day,thisM=true;
+    if(i<fd){day=dip-fd+i+1;thisM=false;}
+    else if(i>=fd+dim){day=i-fd-dim+1;thisM=false;}
+    else{day=i-fd+1;}
+    const dow=i%7;
+    const cell=document.createElement('div');
+    let cls='cell';
+    if(!thisM) cls+=' other';
+    else if(today.getFullYear()===cY&&today.getMonth()===cM&&today.getDate()===day) cls+=' today';
+    if(dow===0) cls+=' cell-sun';
+    if(dow===6) cls+=' cell-sat';
+    if(thisM&&map[day]) cls+=' has-ev';
+    cell.className=cls;
+    const num=document.createElement('span');
+    num.className='cell-num';num.textContent=day;
+    cell.appendChild(num);
+    if(thisM&&map[day]){
+      const evs=map[day];
+      evs.slice(0,2).forEach(a=>{
+        const p=document.createElement('span');
+        p.className='ev-pill ev-'+a.category;
+        p.textContent=(a.title_ja||a.title_original);
+        p.onclick=ev=>{ev.stopPropagation();openModal(a);};
+        cell.appendChild(p);
+      });
+      if(evs.length>2){
+        const m=document.createElement('span');
+        m.className='ev-more';m.textContent='+'+(evs.length-2)+'件';
+        cell.appendChild(m);
+      }
+      cell.onclick=()=>showDay(day,evs);
+    }
+    grid.appendChild(cell);
+  }
+  showMonth();
+}
+
+function showMonth(){
+  const evs=EV_ARTICLES.filter(a=>{
+    if(!a.event_start) return false;
+    const d=new Date(a.event_start);
+    return d.getFullYear()===cY&&d.getMonth()===cM;
+  }).sort((a,b)=>new Date(a.event_start)-new Date(b.event_start));
+  document.getElementById('sp-title').textContent='今月のイベント（'+evs.length+'件）';
+  renderPanel(evs);
+}
+
+function showDay(day,evs){
+  document.getElementById('sp-title').textContent=(cM+1)+'月'+day+'日のイベント';
+  renderPanel(evs);
+}
+
+function renderPanel(evs){
+  const el=document.getElementById('sp-list');
+  if(!evs.length){el.innerHTML='<div class="sp-empty">イベントなし</div>';return;}
+  el.innerHTML='';
+  evs.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='sp-item';
+    d.onclick=()=>openModal(a);
+    const color=CAT_COLORS[a.category]||'#888';
+    const name=CAT_NAMES[a.category]||a.category;
+    d.innerHTML='<span class="sp-tag" style="background:'+color+'">'+name+'</span>'+
+      '<div class="sp-date">📅 '+fmtRange(a.event_start,a.event_end)+'</div>'+
+      '<div class="sp-title">'+(a.title_ja||a.title_original)+'</div>'+
+      (a.event_venue?'<div class="sp-venue">📍 '+a.event_venue+'</div>':'');
+    el.appendChild(d);
+  });
+}
+
+// ─── モーダル ─────────────────────────────────────────────────────
+function openModal(a){
+  const color=CAT_COLORS[a.category]||'#888';
+  const name=CAT_NAMES[a.category]||a.category;
+  document.getElementById('m-tag').textContent=name;
+  document.getElementById('m-tag').style.background=color;
+  document.getElementById('m-title').textContent=a.title_ja||a.title_original;
+  let meta='';
+  if(a.event_start) meta+='<span>📅 '+fmtRange(a.event_start,a.event_end)+'</span>';
+  if(a.event_venue) meta+='<span>📍 '+a.event_venue+'</span>';
+  if(a.event_admission) meta+='<span>🎟 '+a.event_admission+'</span>';
+  document.getElementById('m-meta').innerHTML=meta;
+  document.getElementById('m-summary').textContent=a.summary_ja||a.summary_original||'';
+  document.getElementById('m-link').href=a.url;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ─── 日付フォーマット ─────────────────────────────────────────────
+function fmtDate(s){
+  const d=new Date(s);
+  if(isNaN(d)) return '日程未定';
+  return (d.getMonth()+1)+'月'+d.getDate()+'日（'+'日月火水木金土'[d.getDay()]+'）';
+}
+function fmtRange(s,e){
+  if(!s) return '日程未定';
+  const a=fmtDate(s);
+  if(!e) return a;
+  const b=fmtDate(e);
+  return a===b?a:a+' 〜 '+b;
 }
 </script>
 </body>

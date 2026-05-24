@@ -1,0 +1,57 @@
+name: Update Bangkok Curation Site
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch sources
+        run: python scripts/fetch_sources.py
+        env:
+          PYTHONUNBUFFERED: '1'
+
+      - name: Deduplicate articles
+        run: python scripts/dedupe.py
+
+      - name: Translate with Claude API
+        run: python scripts/translate.py
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Build static site
+        run: python scripts/build_site.py
+
+      - name: Commit and push updated data + site
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          touch docs/.nojekyll
+          git add data/ docs/
+          git diff --staged --quiet || git commit -m "chore: auto-update $(date -u '+%Y-%m-%d %H:%M') UTC"
+          git push

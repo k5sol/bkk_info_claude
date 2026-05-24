@@ -1,9 +1,822 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>BKK Journal</title></head>
-<body style="font-family:sans-serif;text-align:center;padding:80px;color:#555">
-  <h1 style="color:#C9A84C">BKK Journal</h1>
-  <p>初回の GitHub Actions 実行後にサイトが生成されます。</p>
-  <p>Actions タブから「Update Bangkok Curation Site」を手動実行してください。</p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BKK Journal — バンコク情報キュレーション</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@400;500&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --gold:#C9A84C;--gold-lt:#F0D98A;--red:#C0392B;
+      --ink:#1A1714;--ink-mid:#3D3730;--ink-lt:#7A6F65;
+      --paper:#F7F3ED;--paper-lt:#FDFAF6;--border:#DDD5C8;
+      --tag-news:#C0392B;--tag-events:#1A6B5A;--tag-mall:#9B4F96;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);font-size:15px;line-height:1.7}
+
+    /* Header */
+    header{background:var(--ink);border-bottom:3px solid var(--gold);padding:0 24px;position:sticky;top:0;z-index:100}
+    .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px}
+    .site-title{font-family:'Noto Serif JP',serif;font-size:22px;font-weight:700;color:var(--gold);text-decoration:none;letter-spacing:.04em}
+    .site-title span{color:#fff;font-weight:400;font-size:13px;margin-left:10px;opacity:.7;vertical-align:middle}
+    .updated{font-size:11px;color:#888;font-family:monospace}
+
+    /* Tab bar */
+    .tab-bar{background:var(--paper-lt);border-bottom:1px solid var(--border);padding:0 24px;position:sticky;top:60px;z-index:99}
+    .tab-inner{max-width:1200px;margin:0 auto;display:flex}
+    .tab-btn{font-size:13px;padding:13px 22px;background:none;border:none;border-bottom:3px solid transparent;cursor:pointer;color:var(--ink-lt);transition:color .15s,border-color .15s;white-space:nowrap;font-family:'Noto Sans JP',sans-serif}
+    .tab-btn:hover{color:var(--ink)}
+    .tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);font-weight:500}
+
+    /* Views */
+    main{max-width:1200px;margin:0 auto;padding:28px 24px 64px}
+    .view{display:none}.view.active{display:block}
+
+    /* Card grid */
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:22px}
+    .card{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+    .card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(26,23,20,.12)}
+    .card-img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--border)}
+    .card-ph{width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#EBE3D8,#D9CEBF);display:flex;align-items:center;justify-content:center;font-size:28px}
+    .card-body{padding:16px 18px 20px;display:flex;flex-direction:column;flex:1}
+    .card-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+    .tag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:2px;color:#fff;letter-spacing:.05em}
+    .tag-news{background:var(--tag-news)}
+    .tag-events{background:var(--tag-events)}
+    .tag-mall_events{background:var(--tag-mall)}
+    .card-date{font-size:11px;color:var(--ink-lt)}
+    .card-source{font-size:10px;color:var(--ink-lt);margin-left:auto;font-family:'Sarabun',sans-serif;opacity:.8}
+    .card-title{font-family:'Noto Serif JP',serif;font-size:15px;font-weight:700;line-height:1.5;margin-bottom:8px}
+    .card-summary{font-size:13px;color:var(--ink-mid);line-height:1.7;flex:1}
+    .card-footer{margin-top:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+    .card-link{font-size:12px;font-weight:500;color:var(--gold);text-decoration:none;border-bottom:1px solid var(--gold-lt)}
+    .card-link:hover{color:var(--red)}
+    .card-link::after{content:" →"}
+    .event-date-badge{font-size:11px;color:var(--tag-events);background:#E8F5F1;padding:2px 8px;border-radius:2px}
+
+    /* ── Calendar View ── */
+    .cal-layout{display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+    @media(max-width:860px){.cal-layout{grid-template-columns:1fr}}
+    .cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .cal-month{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700}
+    .cal-navs{display:flex;gap:6px}
+    .cal-navs button{background:none;border:1px solid var(--border);border-radius:4px;padding:5px 13px;cursor:pointer;font-size:12px;color:var(--ink-mid);font-family:'Noto Sans JP',sans-serif}
+    .cal-navs button:hover{background:var(--border)}
+    .cal-box{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);background:var(--ink)}
+    .cal-dow span{color:var(--gold-lt);font-size:11px;font-weight:500;text-align:center;padding:7px 0}
+    .cal-dow span:first-child{color:#e88;}
+    .cal-dow span:last-child{color:#88e;}
+    .cal-cells{display:grid;grid-template-columns:repeat(7,1fr)}
+    .cell{min-height:74px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:5px 4px;position:relative}
+    .cell:nth-child(7n){border-right:none}
+    .cell.other{background:#f0ebe4;opacity:.55}
+    .cell.today{background:#FFF8E8}
+    .cell.has-ev{cursor:pointer}.cell.has-ev:hover{background:#F5EFE6}
+    .cell-num{font-size:12px;color:var(--ink-lt);display:block;margin-bottom:3px}
+    .cell.today .cell-num{color:var(--gold);font-weight:700}
+    .cell.today .cell-num::after{content:'●';font-size:6px;margin-left:3px;vertical-align:middle}
+    .cell-sun .cell-num{color:#c55}
+    .cell-sat .cell-num{color:#55c}
+    .ev-pill{display:block;font-size:9px;padding:2px 4px;border-radius:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;cursor:pointer;line-height:1.4}
+    .ev-pill.ev-events{background:var(--tag-events)}
+    .ev-pill.ev-mall_events{background:var(--tag-mall)}
+    .ev-more{font-size:9px;color:var(--ink-lt);margin-top:2px;display:block}
+
+    /* Side panel */
+    .side-panel{background:var(--paper-lt);border:1px solid var(--border);border-radius:4px;padding:18px;position:sticky;top:116px}
+    .side-panel h3{font-family:'Noto Serif JP',serif;font-size:15px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:9px}
+    .sp-item{padding:11px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:opacity .1s}
+    .sp-item:last-child{border-bottom:none}
+    .sp-item:hover{opacity:.7}
+    .sp-tag{font-size:9px;padding:1px 6px;border-radius:2px;color:#fff;display:inline-block;margin-bottom:4px}
+    .sp-date{font-size:11px;color:var(--ink-lt);margin-bottom:3px}
+    .sp-title{font-size:13px;font-weight:500;line-height:1.4;color:var(--ink)}
+    .sp-venue{font-size:11px;color:var(--ink-lt);margin-top:2px}
+    .sp-empty{font-size:13px;color:var(--ink-lt);text-align:center;padding:20px 0}
+
+    /* Modal */
+    .modal-bg{position:fixed;inset:0;background:rgba(26,23,20,.55);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+    .modal-bg.open{display:flex}
+    .modal{background:var(--paper-lt);border-radius:6px;max-width:540px;width:100%;max-height:80vh;overflow-y:auto;padding:26px;position:relative}
+    .modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink-lt);line-height:1}
+    .modal-close:hover{color:var(--ink)}
+    .m-tag{font-size:11px;padding:2px 8px;border-radius:2px;color:#fff;display:inline-block;margin-bottom:10px}
+    .m-title{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700;line-height:1.5;margin-bottom:12px}
+    .m-meta{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;font-size:13px;color:var(--ink-mid)}
+    .m-meta span{display:flex;gap:6px}
+    .m-summary{font-size:14px;line-height:1.8;color:var(--ink-mid);margin-bottom:16px}
+    .m-link{font-size:13px;font-weight:500;color:var(--gold);border-bottom:1px solid var(--gold-lt);text-decoration:none}
+    .m-link:hover{color:var(--red)}
+
+    footer{text-align:center;padding:22px;font-size:11px;color:var(--ink-lt);border-top:1px solid var(--border)}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}.site-title span{display:none}}
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="site-title" href="#">BKK Journal<span>バンコク情報キュレーション</span></a>
+    <div class="updated">更新: 2026-05-24 05:39 UTC</div>
+  </div>
+</header>
+
+<div class="tab-bar">
+  <div class="tab-inner">
+    <button class="tab-btn active" onclick="switchTab('news',this)">📰 ニュース（25）</button>
+    <button class="tab-btn" onclick="switchTab('events',this)">🎉 イベント・祭り（2）</button>
+    <button class="tab-btn" onclick="switchTab('mall',this)">🏬 モールイベント（0）</button>
+    <button class="tab-btn" onclick="switchTab('calendar',this)">📅 カレンダー</button>
+  </div>
+</div>
+
+<main>
+
+  
+  <div class="view active" id="view-news">
+    <div class="grid">
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/1-342.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">プロテープナコーン、13アンダーで優勝 タイランドPGAチャンピオンシップをロータスバレーで制す</h2>
+          <p class="card-summary">プロテープナコーンがタイランドPGAチャンピオンシップでスコア13アンダーで優勝した。ロータスバレーで開催された本大会でチャンピオンシップを獲得した。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/sport/thai-sport/news_5731325" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/news134863-w.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">クルンタイ銀行ブンガム支店 市民が「タイ助けるタイプラス」の受給資格確認に殺到 高齢者が国に利用しやすい措置を求める</h2>
+          <p class="card-summary">ブンガム地域の市民がクルンタイ銀行ブンガム支店に「タイ助けるタイプラス」事業の受給資格確認のため殺到している。高齢者らは国に対してアクセス向上の措置を講じるよう要望している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/region/news_5731255" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/Interior.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">内務省次官が全国に通知 プミポン皇后陛下敬慕活動への参加を呼びかけ</h2>
+          <p class="card-summary">内務省次官アーサシッド・サンパンラットが全国76県に対し、2026年6月3日のプミポン皇后陛下4周忌記念祝賀式典に関連した敬慕活動への参加を呼びかけた。5月23日の発表で、各セクターに活動への協力を招請している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/politics/news_10256394" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/A-19.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">タチャン・パンダオ：失踪防止法が発効 ピアック老人から軍隊訓練まで、中国人から搾取する行為をカバー</h2>
+          <p class="card-summary">失踪防止法が実際に発効し、従来から存在する問題に対処する効果を発揮している。法律の適用が広範囲にわたり、人身売買を含む違法行為への対応が強化されている。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/local/crime/news_5730795" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/CH-D-18.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">中国が本気 AI人型ロボット開発を加速 家事全般対応で2027年の導入を目指す</h2>
+          <p class="card-summary">中国がAI人型ロボット「SeeLight S1」の開発を進め、2027年前半にはウーハン市での試験導入を予定している。洗濯、調理、子どもと高齢者の世話など家事全般を対応でき、ハードウェア原価を10万元（約42万バーツ）以下に抑える目標を掲げている。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/around-the-world-news/news_10256302" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/LIVE2405.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">サイバー警察がフェイスブックのライブ配信で猥褻行為を行った犯人を追跡 「いいね」や「シェア」も違法行為と警告</h2>
+          <p class="card-summary">タイのサイバー警察は、フェイスブックで猥褻なライブ配信を行った犯人を厳しく追跡すると発表しました。同時に、そのコンテンツに「いいね」やシェアをした視聴者も違法行為に該当し、投稿者と同じく5年以下の懲役または10万バーツ以下の罰金に処される可能性があると警告しています。現在、警察は関連するURLと動画に登場する人物の身元特定に当たっており、タイ国内の容疑者に対しては法的措置を取る方針です。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/breaking-news/news_10256312" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/arteta-2888-1.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">アルテタ監督がアーセナルのプレミアリーグ優勝を3月から予感していたと明かす</h2>
+          <p class="card-summary">アーセナルのミゲル・アルテタ監督は、2025-26シーズンのプレミアリーグ優勝を3月から心理的に描写していたと語りました。同監督は数ヶ月前から優勝をイメージトレーニングしており、特に3月から4月の時期に強い確信を持つようになったと述べています。アルテタは優勝の鍵は自分自身への信念をチームに伝播させることだと強調しています。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/sports/news_10256372" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/119-2.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">タウィ・ウムポンタム副首相がナラティワート空港の進捗状況を視察 航空会社誘致の重要性を強調</h2>
+          <p class="card-summary">ナラティワート空港のプロジェクト視察が行われました。当局者は空港を実用的な施設にするため、航空会社の誘致が不可欠であり、単なるコンクリート製のモニュメントに終わらせてはならないと改めて強調しています。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/politics/news_5731311" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/Natthawut-Buaprathum.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">ナッタウット議員が政府に『同性婚平等法』に対応した法律改正を急ぐよう要請</h2>
+          <p class="card-summary">庶民議院議員のナッタウット・ボアプラトゥム氏は、2023年1月23日に発効した同性婚平等法に対応する関連法の改正を政府に急ぐよう要請しました。同法では施行後180日以内（期限は2024年7月19日）に関連法の見直し・改正が必要とされていますが、480日以上経った現在も完了していないと指摘しています。プライドマンスが単なる年間行事に終わらないよう、すべての婚姻カップルの権利保護に真摯に取り組むべきと述べています。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/politics/news_10256358" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/picture-shows-part-jolina-gisele-1024511.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">スイス人女性（20歳）がポケモンカード6万枚以上を所持 総額21億バーツで世界最高額の可能性</h2>
+          <p class="card-summary">スイス出身の20歳女性が、6万枚以上のポケモンカードを保有しており、総額は50万ポンド（約21億バーツ）に達しています。7歳の時から収集を始めたコレクションで、「ピカチュウ・イラストレーター」などのレアカードを含み、ギネス世界記録を更新する可能性があります。ただし、近年ヨーロッパと米国で高額なポケモンカードの盗難事件が相次いでいるため、セキュリティの懸念からコレクション全体をセーフティボックスに保管しているとのことです。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/around-the-world-news/news_10256355" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/Screenshot-2026-05-24-at-11.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">サイバー警察が性的ライブ配信の調査を急ぐ、フェイスブックに削除しない理由を質問</h2>
+          <p class="card-summary">タイのサイバー警察は、ソーシャルメディアで配信された性的内容のライブ配信について調査を進めている。警察はフェイスブックに対し、このようなコンテンツをなぜ削除・ブロックしなかったのかについて質問している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/local/crime/news_5731295" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/hiposelive18plus245699998.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">ハイ・アッパポン、ステージで携帯を見ている観客に言及、タック・シリポンが冗談交じりに質問</h2>
+          <p class="card-summary">著名人のハイ・アッパポンはステージで、携帯電話を見ることに夢中で彼女の方を見ていない観客に気づき、前夜に流出した性的ライブ配信について言及した。タック・シリポンはハイのポストをシェアし、自分の夫の名前も含まれていないか冗談交じりに尋ねた。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/entertainment/news_10256349" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/RedCrossvolunteersdiefromsuspectedEbola-02.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">赤十字連盟、エボラで亡くなった3人のボランティアを明かす、死者数は170人を超える</h2>
+          <p class="card-summary">国際赤十字・赤新月社連盟（IFRC）は、コンゴ民主共和国のイトゥリ州で3人の赤十字ボランティアがエボラウイルスで亡くなったと発表した。3月27日に感染したとみられ、今回の流行では死者が170人を超え、感染の疑いがある者は約750人に達している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/around-the-world-news/news_10256339" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/1-341.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">「ビッグトム」が審判の中立性を批判、タイのムエタイがイエロータイガー戦で途中棄権、世界選手権</h2>
+          <p class="card-summary">「ビッグトム」は審判の中立性に関する判定に不公正があると批判し、タイのムエタイチームが世界選手権のイエロータイガー戦で途中棄権した。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/sport/thai-sport/news_5731299" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/3-87.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">古着販売店組合と中古品買取店が汚染管理局を応援、利益要求を受けたことはないと強調</h2>
+          <p class="card-summary">古着販売店組合と中古品買取店が汚染管理局（DPIM）を支援する声明を発表し、利益や不正な利益を要求されたことは一度もないと強調している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/local/news_5731265" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/11-92.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">言葉の力（第1部）</h2>
+          <p class="card-summary">本記事は書籍のレビューです。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/article/news_5731258" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/2026-04-28T142113Z_285891266_RC2GCKAZICEN_RTRMADP_3_IRAN-CRISIS-SYSTEM-1.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">米・イラン、停戦延長とホルムズ海峡開放で60日間の取引成立が近い—核問題協議に進む見通し</h2>
+          <p class="card-summary">メディアが報じたところによると、米国とイランは停戦延長とホルムズ海峡開放に関する取引を成立させる段階に達しており、その後、核問題についての協議に進む予定です。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/foreign/news_5731287" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/BBNN.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">上院議員50人以上が準備、プラユック党首の「青い体制下での民主主義破壊」主張に反論声明を発表予定—25日午前9時45分</h2>
+          <p class="card-summary">上院議員50人以上が25日午前9時45分に、プラユック・ジャンオーチャー（Prayut Chan-o-cha）国民党党首の「青い体制下での民主主義破壊」との主張に対する反論声明を議会庁舎1階の廊下で発表する予定です。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/politics/news_10256340" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/slot-3888888888.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">「もっと良くあるべき」—アルネ監督、選手交代は言い訳ではないとリバプールのフォーム低迷を指摘</h2>
+          <p class="card-summary">リバプール監督アルネ・スロット（Arne Slot）は、今シーズンのチームの不振について、4億5000万ポンド以上の補強費を使用したにもかかわらず全大会での優勝を逃したことを認め、選手交代はフォーム低迷の言い訳ではないと述べました。次シーズンはチャンピオンシップ争いを目指すと強調しています。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/sports/news_10256348" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.matichon.co.th/wp-content/uploads/2026/05/01-27.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">มติชน（マティチョン）</span>
+          </div>
+          <h2 class="card-title">タイ人女性2人を逮捕、国際的な詐欺電話グループネットワークがタイ人技術者に「SIMボックス」設置を依頼—被害者数百万バーツの損失</h2>
+          <p class="card-summary">警察は国境を超いた詐欺電話コールセンターネットワークを解体し、タイ人技術者にSIMボックス設置を依頼していたタイ人女性2人を逮捕しました。被害者の損失は数百万バーツに上ります。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.matichon.co.th/local/crime/news_5731208" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/16-9-Red-40.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">ハローダーラ – ミウ・オーム新作ドラマ「親愛なる妻へ」で恋愛コメディに挑戦</h2>
+          <p class="card-summary">ミウ・スプシット、オーム・スチャートとのコンビによるロマンティックコメディドラマ「親愛なる妻へ」が「4 ELEMENTS バーンワッティンワニッチ」シリーズの一作として公開される。監督フューズ・キッティサックによると、このドラマは初期段階から良好な反応を受けており、ファイナルエピソード上映会は3時間でチケットが完売したという。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/entertainment/news_10255870" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/Car-crashes-into-house-in-Chumphon-injuring-two-728x410-1.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">チュムポン県で乗用車が民家に突っ込む、2人負傷</h2>
+          <p class="card-summary">5月24日未明、タイ南部チュムポン県のムニシパルソイ6の民家に乗用車が突っ込む事故が発生した。女性住宅所有者と運転手の両名が負傷し、住宅の壁が大きく破損した。警察が事故の詳細を調査している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosodenglish.com/news/2026/05/24/car-crashes-into-house-in-chumphon-injuring-two/" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/cyber-police.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">サイバー警察がオンラインギャンブルネットワーク5人を逮捕、月間売上2,000万バーツ</h2>
+          <p class="card-summary">サイバー警察が違法オンラインギャンブルサイト「argus99ss」の運営ネットワーク5人を逮捕した。月間取引高は2,000万バーツ、会員数は約20,000人で、宝くじやスポーツベッティングなど多様な賭博サービスを提供していた。容疑者たちはバンコクとピサヌロークで身柄確保された。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/around-thailand/news_10256307" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/cannn111.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">カン・アティルット、ニュース配信インフルエンサーに著作権尊重を呼びかけ</h2>
+          <p class="card-summary">有名なニュースキャスター、カン・アティルット・キティパットナが、ニュース配信コンテンツ製作者に対し著作権を尊重するよう警告した。現場で取材するジャーナリストの費用と努力を理解し、すべてのコンテンツに所有者がいることを認識する必要があると強調している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/entertainment/news_10256314" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.khaosod.co.th/wpapp/uploads/2026/05/lottosonklasnake245699998.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-news">ニュース</span>
+            <span class="card-date">5月24日（日）</span>
+            <span class="card-source">ข่าวสด（カーオソット）</span>
+          </div>
+          <h2 class="card-title">ヘビの脱出劇と宝くじのラッキーナンバー – ソンクラー県の民家</h2>
+          <p class="card-summary">ソンクラー県ナータウィー地区の民家でキングコブラが浴室の梁に現れ、携帯電話の充電コードを接続しようとしていた住人を驚かせた。地元のヘビ対策チームが約3メートルのキングコブラを安全に捕獲し、自然保護区に放した。地元の宝くじファンはこの住宅番号を今月の当選番号として注目している。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.khaosod.co.th/lottery/news_10256313" target="_blank" rel="noopener">元記事（タイ語）</a>
+          </div>
+        </div>
+      </article>
+      
+    </div>
+  </div>
+
+  
+  <div class="view" id="view-events">
+    <div class="grid">
+      
+      <article class="card">
+        <img class="card-img" src="https://www.tatnews.org/wp-content/uploads/2026/05/Pride-month-2026-1-724x1024.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-events">イベント・祭り</span>
+            <span class="card-date">5月22日（金）</span>
+            <span class="card-source">TAT公式イベント</span>
+          </div>
+          <h2 class="card-title">タイのプライド月間フェスティバル2026</h2>
+          <p class="card-summary">タイは2026年のプライド月間を、多様性、平等、包摂性を強調した活気あるフェスティバルで全国的に祝います。バンコクプライド、チェンマイプライドフェスティバル、ロイプライド月間、プーケットプライドフェスティバル、パタヤインターナショナルプライドフェスティバル、クラビプライド、トランプライド、ハジャイプライドフェスティバルなど、全国各地でコミュニティが集結します。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.tatnews.org/2026/05/pride-month-festivals-2026-in-thailand/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=pride-month-festivals-2026-in-thailand" target="_blank" rel="noopener">元記事（タイ語）</a>
+            
+          </div>
+        </div>
+      </article>
+      
+      <article class="card">
+        <img class="card-img" src="https://www.tatnews.org/wp-content/uploads/2026/05/June-2026-Event-and-Calendar-1-724x1024.jpg" alt="" loading="lazy" onerror="this.style.display='none'">
+        
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="tag tag-events">イベント・祭り</span>
+            <span class="card-date">5月21日（木）</span>
+            <span class="card-source">TAT公式イベント</span>
+          </div>
+          <h2 class="card-title">タイの6月2026年フェスティバル・イベント</h2>
+          <p class="card-summary">2026年6月のタイでは、ナーンの熱気球、ロイエットとカラシンのロケットフェスティバル、プーケットとカンペンペットのマラソン、工芸イベント、ライブアート、ドリアンフェスティバル、ブンルアンやピータコンなどの文化的伝統を含む、多彩なフェスティバルとイベントが開催されます。</p>
+          <div class="card-footer">
+            <a class="card-link" href="https://www.tatnews.org/2026/05/june-2026-festivals-and-events-in-thailand/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=june-2026-festivals-and-events-in-thailand" target="_blank" rel="noopener">元記事（タイ語）</a>
+            
+          </div>
+        </div>
+      </article>
+      
+    </div>
+  </div>
+
+  
+  <div class="view" id="view-mall">
+    <div class="grid">
+      <p style="color:var(--ink-lt);font-size:14px">記事がありません</p>
+    </div>
+  </div>
+
+  
+  <div class="view" id="view-calendar">
+    <div class="cal-layout">
+      <div>
+        <div class="cal-head">
+          <div class="cal-month" id="cal-label"></div>
+          <div class="cal-navs">
+            <button onclick="moveCal(-1)">‹ 前月</button>
+            <button onclick="moveCal(0)">今月</button>
+            <button onclick="moveCal(1)">次月 ›</button>
+          </div>
+        </div>
+        <div class="cal-box">
+          <div class="cal-dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+          <div class="cal-cells" id="cal-cells"></div>
+        </div>
+      </div>
+      <div>
+        <div class="side-panel">
+          <h3 id="sp-title">今月のイベント</h3>
+          <div id="sp-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div id="m-tag" class="m-tag"></div>
+    <div id="m-title" class="m-title"></div>
+    <div id="m-meta" class="m-meta"></div>
+    <div id="m-summary" class="m-summary"></div>
+    <a id="m-link" class="m-link" target="_blank" rel="noopener">元記事を読む →</a>
+  </div>
+</div>
+
+<footer>BKK Journal — タイ語ソースを Claude API で日本語化 &nbsp;|&nbsp; 自動更新: 6時間ごと</footer>
+
+<script>
+// ─── データ（autoescape回避のためsafeフィルタで埋め込む）───────────────
+const EV_ARTICLES = [];
+const CAT_COLORS  = {events:'#1A6B5A', mall_events:'#9B4F96'};
+const CAT_NAMES   = {events:'イベント・祭り', mall_events:'モールイベント'};
+
+// ─── タブ切り替え ─────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'calendar') renderCal();
+}
+
+// ─── カレンダー ───────────────────────────────────────────────────
+let cY, cM;
+(function(){const n=new Date();cY=n.getFullYear();cM=n.getMonth();})();
+
+function moveCal(d){
+  if(d===0){const n=new Date();cY=n.getFullYear();cM=n.getMonth();}
+  else{cM+=d;if(cM>11){cM=0;cY++;}if(cM<0){cM=11;cY--;}}
+  renderCal();
+}
+
+function evByDay(){
+  const map={};
+  EV_ARTICLES.forEach(a=>{
+    if(!a.event_start) return;
+    const s=new Date(a.event_start);
+    if(isNaN(s)) return;
+    const e=a.event_end ? new Date(a.event_end) : s;
+    const lo=new Date(cY,cM,1), hi=new Date(cY,cM+1,0);
+    let cur=new Date(Math.max(s,lo));
+    const end2=new Date(Math.min(e,hi));
+    while(cur<=end2){
+      const k=cur.getDate();
+      (map[k]=map[k]||[]).push(a);
+      cur.setDate(cur.getDate()+1);
+    }
+  });
+  return map;
+}
+
+function renderCal(){
+  const MN=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('cal-label').textContent=cY+'年 '+MN[cM];
+  const today=new Date();
+  const fd=new Date(cY,cM,1).getDay();
+  const dim=new Date(cY,cM+1,0).getDate();
+  const dip=new Date(cY,cM,0).getDate();
+  const map=evByDay();
+  const grid=document.getElementById('cal-cells');
+  grid.innerHTML='';
+  const total=Math.ceil((fd+dim)/7)*7;
+  for(let i=0;i<total;i++){
+    let day,thisM=true;
+    if(i<fd){day=dip-fd+i+1;thisM=false;}
+    else if(i>=fd+dim){day=i-fd-dim+1;thisM=false;}
+    else{day=i-fd+1;}
+    const dow=i%7;
+    const cell=document.createElement('div');
+    let cls='cell';
+    if(!thisM) cls+=' other';
+    else if(today.getFullYear()===cY&&today.getMonth()===cM&&today.getDate()===day) cls+=' today';
+    if(dow===0) cls+=' cell-sun';
+    if(dow===6) cls+=' cell-sat';
+    if(thisM&&map[day]) cls+=' has-ev';
+    cell.className=cls;
+    const num=document.createElement('span');
+    num.className='cell-num';num.textContent=day;
+    cell.appendChild(num);
+    if(thisM&&map[day]){
+      const evs=map[day];
+      evs.slice(0,2).forEach(a=>{
+        const p=document.createElement('span');
+        p.className='ev-pill ev-'+a.category;
+        p.textContent=(a.title_ja||a.title_original);
+        p.onclick=ev=>{ev.stopPropagation();openModal(a);};
+        cell.appendChild(p);
+      });
+      if(evs.length>2){
+        const m=document.createElement('span');
+        m.className='ev-more';m.textContent='+'+(evs.length-2)+'件';
+        cell.appendChild(m);
+      }
+      cell.onclick=()=>showDay(day,evs);
+    }
+    grid.appendChild(cell);
+  }
+  showMonth();
+}
+
+function showMonth(){
+  const evs=EV_ARTICLES.filter(a=>{
+    if(!a.event_start) return false;
+    const d=new Date(a.event_start);
+    return d.getFullYear()===cY&&d.getMonth()===cM;
+  }).sort((a,b)=>new Date(a.event_start)-new Date(b.event_start));
+  document.getElementById('sp-title').textContent='今月のイベント（'+evs.length+'件）';
+  renderPanel(evs);
+}
+
+function showDay(day,evs){
+  document.getElementById('sp-title').textContent=(cM+1)+'月'+day+'日のイベント';
+  renderPanel(evs);
+}
+
+function renderPanel(evs){
+  const el=document.getElementById('sp-list');
+  if(!evs.length){el.innerHTML='<div class="sp-empty">イベントなし</div>';return;}
+  el.innerHTML='';
+  evs.forEach(a=>{
+    const d=document.createElement('div');
+    d.className='sp-item';
+    d.onclick=()=>openModal(a);
+    const color=CAT_COLORS[a.category]||'#888';
+    const name=CAT_NAMES[a.category]||a.category;
+    d.innerHTML='<span class="sp-tag" style="background:'+color+'">'+name+'</span>'+
+      '<div class="sp-date">📅 '+fmtRange(a.event_start,a.event_end)+'</div>'+
+      '<div class="sp-title">'+(a.title_ja||a.title_original)+'</div>'+
+      (a.event_venue?'<div class="sp-venue">📍 '+a.event_venue+'</div>':'');
+    el.appendChild(d);
+  });
+}
+
+// ─── モーダル ─────────────────────────────────────────────────────
+function openModal(a){
+  const color=CAT_COLORS[a.category]||'#888';
+  const name=CAT_NAMES[a.category]||a.category;
+  document.getElementById('m-tag').textContent=name;
+  document.getElementById('m-tag').style.background=color;
+  document.getElementById('m-title').textContent=a.title_ja||a.title_original;
+  let meta='';
+  if(a.event_start) meta+='<span>📅 '+fmtRange(a.event_start,a.event_end)+'</span>';
+  if(a.event_venue) meta+='<span>📍 '+a.event_venue+'</span>';
+  if(a.event_admission) meta+='<span>🎟 '+a.event_admission+'</span>';
+  document.getElementById('m-meta').innerHTML=meta;
+  document.getElementById('m-summary').textContent=a.summary_ja||a.summary_original||'';
+  document.getElementById('m-link').href=a.url;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ─── 日付フォーマット ─────────────────────────────────────────────
+function fmtDate(s){
+  const d=new Date(s);
+  if(isNaN(d)) return '日程未定';
+  return (d.getMonth()+1)+'月'+d.getDate()+'日（'+'日月火水木金土'[d.getDay()]+'）';
+}
+function fmtRange(s,e){
+  if(!s) return '日程未定';
+  const a=fmtDate(s);
+  if(!e) return a;
+  const b=fmtDate(e);
+  return a===b?a:a+' 〜 '+b;
+}
+</script>
 </body>
 </html>

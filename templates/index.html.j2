@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BKK Journal — バンコク情報キュレーション</title>
+  <meta name="description" content="バンコクのニュース・イベント・ショッピングモール情報をタイ語ソースから日本語でお届け">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@400;500&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:    #C9A84C;
+      --gold-lt: #F0D98A;
+      --red:     #C0392B;
+      --ink:     #1A1714;
+      --ink-mid: #3D3730;
+      --ink-lt:  #7A6F65;
+      --paper:   #F7F3ED;
+      --paper-lt:#FDFAF6;
+      --border:  #DDD5C8;
+      --tag-news:   #C0392B;
+      --tag-events: #1A6B5A;
+      --tag-mall:   #9B4F96;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── ヘッダー ── */
+    header {
+      background: var(--ink);
+      border-bottom: 3px solid var(--gold);
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .site-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.04em;
+      text-decoration: none;
+    }
+    .site-title span {
+      color: #fff;
+      font-weight: 400;
+      font-size: 13px;
+      margin-left: 10px;
+      opacity: 0.7;
+      vertical-align: middle;
+    }
+    .updated {
+      font-size: 11px;
+      color: #888;
+      font-family: monospace;
+    }
+
+    /* ── フィルタータブ ── */
+    .filter-bar {
+      background: var(--paper-lt);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      position: sticky;
+      top: 60px;
+      z-index: 99;
+    }
+    .filter-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0;
+    }
+    .filter-btn {
+      font-family: 'Noto Sans JP', sans-serif;
+      font-size: 13px;
+      padding: 12px 20px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      color: var(--ink-lt);
+      transition: color .15s, border-color .15s;
+      white-space: nowrap;
+    }
+    .filter-btn:hover { color: var(--ink); }
+    .filter-btn.active {
+      color: var(--gold);
+      border-bottom-color: var(--gold);
+      font-weight: 500;
+    }
+
+    /* ── メインレイアウト ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ── カードグリッド ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    /* ── 記事カード ── */
+    .card {
+      background: var(--paper-lt);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(26,23,20,.12);
+    }
+
+    .card-image {
+      width: 100%;
+      aspect-ratio: 16/9;
+      object-fit: cover;
+      background: var(--border);
+      display: block;
+    }
+    .card-image-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #EBE3D8 0%, #D9CEBF 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--border);
+    }
+
+    .card-body {
+      padding: 16px 18px 20px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .tag {
+      font-size: 10px;
+      font-weight: 500;
+      padding: 2px 7px;
+      border-radius: 2px;
+      color: #fff;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .tag-news        { background: var(--tag-news); }
+    .tag-events      { background: var(--tag-events); }
+    .tag-mall_events { background: var(--tag-mall); }
+
+    .card-date {
+      font-size: 11px;
+      color: var(--ink-lt);
+    }
+    .card-source {
+      font-size: 10px;
+      color: var(--ink-lt);
+      margin-left: auto;
+      font-family: 'Sarabun', sans-serif;
+      opacity: 0.8;
+    }
+
+    .card-title {
+      font-family: 'Noto Serif JP', serif;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.5;
+      color: var(--ink);
+      margin-bottom: 8px;
+    }
+    .card-summary {
+      font-size: 13px;
+      color: var(--ink-mid);
+      line-height: 1.7;
+      flex: 1;
+    }
+
+    .card-footer {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-link {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gold);
+      text-decoration: none;
+      border-bottom: 1px solid var(--gold-lt);
+      padding-bottom: 1px;
+      transition: color .15s;
+    }
+    .card-link:hover { color: var(--red); }
+    .card-link::after { content: " →"; }
+
+    /* ── 空のカテゴリ ── */
+    .empty-msg {
+      text-align: center;
+      color: var(--ink-lt);
+      font-size: 14px;
+      padding: 48px 0;
+    }
+
+    /* ── フッター ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: var(--ink-lt);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── hidden ── */
+    .card[data-category][data-hidden] { display: none; }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      .site-title span { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="site-title" href="#">
+      BKK Journal<span>バンコク情報キュレーション</span>
+    </a>
+    <div class="updated">更新: {{ updated_at }}</div>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <div class="filter-inner">
+    <button class="filter-btn active" data-filter="all" onclick="filterCards('all', this)">
+      すべて（{{ total }}）
+    </button>
+    {% for cat, label in category_labels.items() %}
+    {% if by_category.get(cat) %}
+    <button class="filter-btn" data-filter="{{ cat }}" onclick="filterCards('{{ cat }}', this)">
+      {{ label }}（{{ by_category[cat]|length }}）
+    </button>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+<main>
+  <div class="grid" id="card-grid">
+    {% for article in articles %}
+    <article class="card" data-category="{{ article.category }}">
+      {% if article.image_url %}
+      <img class="card-image" src="{{ article.image_url }}" alt="" loading="lazy" onerror="this.style.display='none'">
+      {% else %}
+      <div class="card-image-placeholder">🇹🇭</div>
+      {% endif %}
+
+      <div class="card-body">
+        <div class="card-meta">
+          <span class="tag tag-{{ article.category }}">
+            {{ category_labels.get(article.category, article.category) }}
+          </span>
+          <span class="card-date">{{ article.date_ja }}</span>
+          <span class="card-source">{{ article.source_name }}</span>
+        </div>
+
+        <h2 class="card-title">
+          {{ article.title_ja if article.translated else article.title_original }}
+        </h2>
+
+        <p class="card-summary">
+          {{ article.summary_ja if article.translated else article.summary_original }}
+        </p>
+
+        <div class="card-footer">
+          <a class="card-link" href="{{ article.url }}" target="_blank" rel="noopener">
+            元記事（タイ語）
+          </a>
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <p class="empty-msg">記事がまだありません。次回の更新をお待ちください。</p>
+    {% endfor %}
+  </div>
+</main>
+
+<footer>
+  BKK Journal — タイ語ソースを Claude API で日本語化 &nbsp;|&nbsp;
+  自動更新: 6時間ごと
+</footer>
+
+<script>
+function filterCards(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.card[data-category]').forEach(card => {
+    const show = cat === 'all' || card.dataset.category === cat;
+    card.toggleAttribute('data-hidden', !show);
+  });
+}
+</script>
+</body>
+</html>

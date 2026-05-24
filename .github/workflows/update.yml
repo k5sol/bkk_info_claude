@@ -2,8 +2,8 @@ name: Update Bangkok Curation Site
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */6 * * *'   # 6時間ごと（UTC）
+  workflow_dispatch:         # 手動実行も可能
 
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v5          # v5はNode.js 24対応
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,6 +51,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # .nojekyll が消えないよう docs/ に常に含める
           touch docs/.nojekyll
           git add data/ docs/
           git diff --staged --quiet || git commit -m "chore: auto-update $(date -u '+%Y-%m-%d %H:%M') UTC"

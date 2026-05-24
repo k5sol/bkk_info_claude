@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-"""
-dedupe.py
-raw_articles.json から重複を除去し、
-既存の翻訳済み記事（articles.json）とマージして
-data/articles.json を更新する
-
-保持期間:
-  ニュース        : 7日
-  イベント・モール : 30日（記事公開日ベース。開催日が先のものも保持）
-"""
 import json
 from datetime import datetime, timezone, timedelta
 from pathlib import Path

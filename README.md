@@ -1,77 +1,147 @@
-# BKK Journal — バンコク情報キュレーションサイト
+"""情報収集ソース設定"""
 
-タイ語ニュース・イベント情報を Claude API で日本語化し、
-GitHub Pages に自動公開する静的サイトです。
+SOURCES = [
+    # ── 日本語サイト ─────────────────────────────────────────────────
+    {
+        "id": "thaich_news",
+        "name": "タイランドハイパーリンクス",
+        "type": "rss",
+        "url": "https://www.thaich.net/news/rss.xml",
+        "category": "ja_news",
+        "max_items": 20,
+        "lang": "ja",
+    },
+    {
+        "id": "xbomber_news",
+        "name": "X-BOMBER Thailand",
+        "type": "rss",
+        "url": "https://x-bomberth.com/feed/",
+        "category": "ja_news",
+        "max_items": 20,
+        "lang": "ja",
+    },
 
-## ディレクトリ構成
+    # ── タイ語ニュース ────────────────────────────────────────────────
+    {
+        "id": "thairath_general",
+        "name": "ไทยรัฐ（タイラット）",
+        "type": "rss",
+        "url": "https://www.thairath.co.th/rss/news.xml",
+        "category": "news_pending",
+        "max_items": 20,
+        "lang": "th",
+    },
+    {
+        "id": "khaosod_general",
+        "name": "ข่าวสด（カーオソット）",
+        "type": "rss",
+        "url": "https://www.khaosod.co.th/feed",
+        "category": "news_pending",
+        "max_items": 20,
+        "lang": "th",
+    },
+    {
+        "id": "matichon_general",
+        "name": "มติชน（マティチョン）",
+        "type": "rss",
+        "url": "https://www.matichon.co.th/feed",
+        "category": "news_pending",
+        "max_items": 15,
+        "lang": "th",
+    },
+    {
+        "id": "sanook_news",
+        "name": "สนุก！ニュース",
+        "type": "rss",
+        "url": "https://news.sanook.com/rss/news.xml",
+        "category": "news_pending",
+        "max_items": 15,
+        "lang": "th",
+    },
+    {
+        "id": "kapook_news",
+        "name": "กระปุก（カプック）",
+        "type": "rss",
+        "url": "https://news.kapook.com/rss.xml",
+        "category": "news_pending",
+        "max_items": 15,
+        "lang": "th",
+    },
+    {
+        "id": "dailynews",
+        "name": "เดลินิวส์（デーリーニュース）",
+        "type": "rss",
+        "url": "https://www.dailynews.co.th/feed/",
+        "category": "news_pending",
+        "max_items": 15,
+        "lang": "th",
+    },
 
-```
-bangkok-curation/
-├── .github/workflows/update.yml   # GitHub Actions（6時間ごと自動実行）
-├── scripts/
-│   ├── sources_config.py          # 収集ソース設定（ここを編集してカスタマイズ）
-│   ├── fetch_sources.py           # RSS取得＋スクレイピング
-│   ├── dedupe.py                  # 重複除去・古い記事の削除
-│   ├── translate.py               # Claude API で日本語翻訳＋イベント情報抽出
-│   └── build_site.py              # 静的HTML生成
-├── templates/index.html.j2        # サイトHTMLテンプレート
-├── data/
-│   ├── raw_articles.json          # 収集した生データ（自動生成）
-│   └── articles.json              # 翻訳済みキャッシュ（自動生成）
-├── docs/
-│   ├── index.html                 # 公開サイト（自動生成）
-│   └── articles.json              # JSON（自動生成）
-└── requirements.txt
-```
+    # ── TAT公式イベント（本文も取得して複数イベント分離） ───────────
+    # RSSが取得できない場合のフォールバックとして複数URLを設定
+    {
+        "id": "tat_events",
+        "name": "TAT公式イベント",
+        "type": "rss_fulltext",
+        "url": "https://www.tatnews.org/category/thailand-events-festivals/feed/",
+        "category": "events",
+        "max_items": 10,
+        "lang": "en",
+    },
 
-## セットアップ手順
+    # ── モールイベント（Googleニュース検索RSS + 本文取得） ─────────
+    # Googleニュース経由は要約が短いため本文も取得する
+    {
+        "id": "iconsiam_gnews",
+        "name": "ICONSIAM イベント",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=ICONSIAM+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "category": "mall_events",
+        "max_items": 8,
+        "lang": "th",
+    },
+    {
+        "id": "centralworld_gnews",
+        "name": "CentralWorld イベント",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=CentralWorld+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "category": "mall_events",
+        "max_items": 8,
+        "lang": "th",
+    },
+    {
+        "id": "siamparagon_gnews",
+        "name": "Siam Paragon イベント",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=Siam+Paragon+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "category": "mall_events",
+        "max_items": 8,
+        "lang": "th",
+    },
+    {
+        "id": "emquartier_gnews",
+        "name": "EmQuartier / EmSphere イベント",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=EmQuartier+EmSphere+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "category": "mall_events",
+        "max_items": 8,
+        "lang": "th",
+    },
+    {
+        "id": "onebangkok_gnews",
+        "name": "One Bangkok イベント",
+        "type": "rss_fulltext",
+        "url": "https://news.google.com/rss/search?q=%22One+Bangkok%22+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "category": "mall_events",
+        "max_items": 8,
+        "lang": "th",
+    },
+]
 
-### 1. このリポジトリをGitHubにpush
-
-```bash
-cd bangkok-curation
-git init
-git add -A
-git commit -m "initial commit"
-git branch -M main
-git remote add origin https://github.com/<your-username>/bangkok-curation.git
-git push -u origin main
-```
-
-### 2. GitHub Secrets の登録
-
-リポジトリの **Settings → Secrets and variables → Actions → New repository secret**
-
-| Name | Value |
-|------|-------|
-| `ANTHROPIC_API_KEY` | Anthropic Console の APIキー |
-
-### 3. GitHub Pages の有効化
-
-リポジトリの **Settings → Pages**
-- Source: **Deploy from a branch**
-- Branch: `main` / folder: `/docs`
-- **Save** をクリック
-
-### 4. 初回手動実行
-
-**Actions → Update Bangkok Curation Site → Run workflow → Run workflow**
-
-数分後に `https://<your-username>.github.io/bangkok-curation/` で公開されます。
-
-## ローカルでのテスト実行
-
-```bash
-pip install -r requirements.txt
-python scripts/fetch_sources.py
-python scripts/dedupe.py
-ANTHROPIC_API_KEY=sk-ant-... python scripts/translate.py
-python scripts/build_site.py
-open docs/index.html
-```
-
-## カスタマイズ
-
-`scripts/sources_config.py` の `SOURCES` リストを編集するだけでソースを追加・削除できます。
-
-更新頻度は `.github/workflows/update.yml` の cron を変更してください。
+CATEGORY_LABELS = {
+    "ja_news":       "日本語サイト",
+    "news_domestic": "国内ニュース",
+    "news_intl":     "国際ニュース",
+    "events":        "イベント・祭り",
+    "mall_events":   "モールイベント",
+}

@@ -21,7 +21,7 @@ client_instance = None
 
 # sources_config から定数を読み込む
 sys.path.insert(0, str(Path(__file__).parent))
-from sources_config import MULTI_EVENT_SOURCES, FILTER_FOR_EVENTS_SOURCES
+from sources_config import MULTI_EVENT_SOURCES, FILTER_FOR_EVENTS_SOURCES, PASSTHROUGH_CATEGORIES
 
 
 def _clean_json(text: str) -> str:
@@ -191,7 +191,15 @@ def select_event_articles(articles: list[dict]) -> list[dict]:
 EVENT_SYS = """\
 タイ語/英語→日本語翻訳・イベント情報抽出。JSONのみ返答。
 固有名詞はカタカナ＋英語名。日付はISO 8601。通貨はバーツ表記。
-body（本文）がある場合は本文から日程・会場を優先して抽出すること。
+
+日程抽出の優先順位:
+1. body（本文）に日付があれば最優先で使う
+2. 本文がなければ summary や title から日付を探す
+3. タイ語の月名（ม.ค.=1月, ก.พ.=2月, มี.ค.=3月, เม.ย.=4月,
+   พ.ค.=5月, มิ.ย.=6月, ก.ค.=7月, ส.ค.=8月, ก.ย.=9月,
+   ต.ค.=10月, พ.ย.=11月, ธ.ค.=12月）も日付として認識する
+4. タイ仏暦（例:2569）は西暦に変換（-543）する
+5. event_startに既に値がある場合はそれを尊重し、より詳細な情報で上書き可能
 """
 
 def translate_events(articles: list[dict]) -> None:
@@ -273,16 +281,29 @@ def main():
     articles: list[dict] = json.loads(ARTICLES_FILE.read_text(encoding="utf-8"))
     existing_ids = {a["id"] for a in articles}
 
-    # ja_news: そのまま転記
+    # ja_news: 日本語なのでそのまま転記（翻訳不要）
     ja_done = 0
     for a in articles:
-        if a.get("lang") == "ja" and not a.get("translated"):
+        if a.get("category") == "ja_news" and not a.get("translated"):
             a["title_ja"]   = a["title_original"]
             a["summary_ja"] = a["summary_original"]
             a["translated"] = True
             ja_done += 1
     if ja_done:
         print(f"日本語記事スキップ: {ja_done}件")
+
+    # privilege: 英語→日本語翻訳
+    priv_todo = [a for a in articles
+                 if a.get("category") == "privilege" and not a.get("translated")]
+    if priv_todo:
+        print(f"\nPrivilege翻訳: {len(priv_todo)}件")
+        for i in range(0, len(priv_todo), BATCH_SIZE):
+            batch = priv_todo[i:i+BATCH_SIZE]
+            print(f"  バッチ {i//BATCH_SIZE+1}: {len(batch)}件 →", end=" ", flush=True)
+            translate_news(batch)
+            print(f"{sum(1 for a in batch if a.get('translated'))}件完了")
+            if i + BATCH_SIZE < len(priv_todo):
+                time.sleep(1)
 
     # Step1: news_pending フィルタ＋分類
     pending = [a for a in articles
@@ -337,6 +358,13 @@ def main():
                 a["translated"] = True
 
     # Step3: mall_events 翻訳
+    # デバッグ: mall_eventsの全記事の状態を出力
+    all_mall = [a for a in articles if a.get("category") == "mall_events"]
+    print(f"\n[DEBUG] mall_events 全件: {len(all_mall)}件")
+    for a in all_mall:
+        print(f"  source={a.get('source_id','?'):25s} translated={a.get('translated')} "
+              f"event_start={a.get('event_start')} title={a.get('title_original','')[:40]}")
+
     mall_todo = [a for a in articles
                  if a.get("category") == "mall_events" and not a.get("translated")]
     print(f"\nStep3: モールイベント翻訳 ({len(mall_todo)}件)")
@@ -344,7 +372,11 @@ def main():
         batch = mall_todo[i:i+BATCH_SIZE]
         print(f"  バッチ {i//BATCH_SIZE+1}: {len(batch)}件 →", end=" ", flush=True)
         translate_events(batch)
-        print(f"{sum(1 for a in batch if a.get('translated'))}件完了")
+        # デバッグ: 翻訳後の状態確認
+        for a in batch:
+            print(f"    → id={a['id']} translated={a.get('translated')} "
+                  f"event_start={a.get('event_start')} title_ja={a.get('title_ja','(なし)')[:30]}")
+        print(f"  {sum(1 for a in batch if a.get('translated'))}件完了")
         if i + BATCH_SIZE < len(mall_todo):
             time.sleep(1)
 

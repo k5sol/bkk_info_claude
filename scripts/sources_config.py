@@ -20,6 +20,26 @@ SOURCES = [
         "max_items": 20,
         "lang": "ja",
     },
+    {
+        "id": "runbkk_net",
+        "name": "タイ一択",
+        "type": "rss",
+        "url": "https://runbkk.net/feed/",
+        "category": "ja_news",
+        "max_items": 15,
+        "lang": "ja",
+    },
+
+    # ── Thailand Privilege ────────────────────────────────────────────
+    {
+        "id": "privilege_news",
+        "name": "Thailand Privilege",
+        "type": "rss_fulltext",
+        "url": "https://thaireloservices-thailandprivilege.com/news/feed/",
+        "category": "privilege",
+        "max_items": 10,
+        "lang": "en",
+    },
 
     # ── タイ語ニュース ────────────────────────────────────────────────
     {
@@ -77,7 +97,7 @@ SOURCES = [
         "lang": "th",
     },
 
-    # ── イベント情報（英語・本文取得して複数イベント分離） ───────────
+    # ── イベント情報（英語・本文取得して複数イベント分離） ─────────
     {
         "id": "tat_events",
         "name": "TAT公式イベント",
@@ -88,14 +108,12 @@ SOURCES = [
         "lang": "en",
     },
     {
-        # BK Magazineの「things to do this weekend」記事
-        # 毎週木〜金に投稿。具体的な日程・会場・詳細が本文に含まれる最良ソース
         "id": "bk_events",
         "name": "BK Magazine イベント",
         "type": "rss_fulltext",
         "url": "https://bk.asia-city.com/things-to-do/more-event-news/feed",
         "category": "events",
-        "max_items": 5,   # まとめ記事なので少数で十分
+        "max_items": 5,
         "lang": "en",
     },
     {
@@ -106,7 +124,6 @@ SOURCES = [
         "category": "events",
         "max_items": 10,
         "lang": "en",
-        # イベント記事とニュース混在のためフィルタで選別
     },
     {
         "id": "nation_events",
@@ -118,13 +135,45 @@ SOURCES = [
         "lang": "en",
     },
 
-    # ── モールイベント（Googleニュース検索RSS + 本文取得） ─────────
-    # Googleニュース経由は本文も取得して日程抽出精度を上げる
+    # ── モールイベント ────────────────────────────────────────────────
+    {
+        "id": "emsphere_rss",
+        "name": "EmSphere / EmQuartier イベント",
+        "type": "rss_fulltext",
+        "url": "https://emsphere.co.th/category/event/feed/",
+        "category": "mall_events",
+        "max_items": 15,
+        "lang": "th",
+    },
+    {
+        "id": "emdistrict_rss",
+        "name": "EM District プロモーション",
+        "type": "rss_fulltext",
+        "url": "https://emsphere.co.th/category/promotion/feed/",
+        "category": "mall_events",
+        "max_items": 10,
+        "lang": "th",
+    },
+    {
+        "id": "thaiticket_uoblive",
+        "name": "UOB Live（EmSphere）コンサート",
+        "type": "scrape_structured",
+        "url": "https://www.thaiticketmajor.com/venue/uob-live-emsphere.html",
+        "category": "mall_events",
+        "max_items": 15,
+        "lang": "th",
+        "scrape_rules": {
+            "item_selector": ".event-item, .concert-item, article, .card",
+            "title_selector": "h2, h3, .title, .event-name",
+            "date_selector":  ".date, time, .event-date",
+            "link_selector":  "a",
+        },
+    },
     {
         "id": "iconsiam_gnews",
         "name": "ICONSIAM イベント",
         "type": "rss_fulltext",
-        "url": "https://news.google.com/rss/search?q=ICONSIAM+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "url": "https://news.google.com/rss/search?q=ICONSIAM+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2569&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
         "max_items": 8,
         "lang": "th",
@@ -133,7 +182,7 @@ SOURCES = [
         "id": "centralworld_gnews",
         "name": "CentralWorld イベント",
         "type": "rss_fulltext",
-        "url": "https://news.google.com/rss/search?q=CentralWorld+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "url": "https://news.google.com/rss/search?q=CentralWorld+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2569&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
         "max_items": 8,
         "lang": "th",
@@ -142,16 +191,7 @@ SOURCES = [
         "id": "siamparagon_gnews",
         "name": "Siam Paragon イベント",
         "type": "rss_fulltext",
-        "url": "https://news.google.com/rss/search?q=Siam+Paragon+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
-        "category": "mall_events",
-        "max_items": 8,
-        "lang": "th",
-    },
-    {
-        "id": "emdistrict_gnews",
-        "name": "EmQuartier / EmSphere イベント",
-        "type": "rss_fulltext",
-        "url": "https://news.google.com/rss/search?q=EmQuartier+EmSphere+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "url": "https://news.google.com/rss/search?q=%E0%B8%AA%E0%B8%A2%E0%B8%B2%E0%B8%A1%E0%B8%9E%E0%B8%B2%E0%B8%A3%E0%B8%B2%E0%B8%81%E0%B8%AD%E0%B8%99+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2569&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
         "max_items": 8,
         "lang": "th",
@@ -160,21 +200,25 @@ SOURCES = [
         "id": "onebangkok_gnews",
         "name": "One Bangkok イベント",
         "type": "rss_fulltext",
-        "url": "https://news.google.com/rss/search?q=%22One+Bangkok%22+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2026&hl=th&gl=TH&ceid=TH:th",
+        "url": "https://news.google.com/rss/search?q=%22One+Bangkok%22+%E0%B8%81%E0%B8%B4%E0%B8%88%E0%B8%81%E0%B8%A3%E0%B8%A3%E0%B8%A1+2569&hl=th&gl=TH&ceid=TH:th",
         "category": "mall_events",
         "max_items": 8,
         "lang": "th",
     },
 ]
 
-# translate.py で複数イベント分離を行うソースID
+# 複数イベント分離を行うソースID
 MULTI_EVENT_SOURCES = {"tat_events", "bk_events"}
 
-# イベント記事かどうか本文でフィルタするソースID（ニュース混在ソース）
+# イベント記事のみ選別するソースID（ニュース混在ソース）
 FILTER_FOR_EVENTS_SOURCES = {"coconuts_bkk", "nation_events"}
+
+# 翻訳するがフィルタリングしないカテゴリ（そのまま掲載）
+PASSTHROUGH_CATEGORIES = {"ja_news", "privilege"}
 
 CATEGORY_LABELS = {
     "ja_news":       "日本語サイト",
+    "privilege":     "Thailand Privilege",
     "news_domestic": "国内ニュース",
     "news_intl":     "国際ニュース",
     "events":        "イベント・祭り",

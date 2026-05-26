@@ -301,38 +301,67 @@ function switchTab(id, btn) {
     });
   }
 
-  // 新着記事グリッド
+  // 新着記事：カテゴリ別セクションで表示
   const grid=document.getElementById('recent-grid');
   const rcnt=document.getElementById('recent-count');
   rcnt.textContent=RECENT_ARTICLES.length+'件';
   grid.innerHTML='';
-  RECENT_ARTICLES.forEach(a=>{
-    const color=CAT_COLORS[a.category]||'#888';
-    const name=CAT_NAMES[a.category]||a.category;
-    const el=document.createElement('article');
-    el.className='card';
-    const title=a.title_ja||a.title_original||'';
-    const summary=a.summary_ja||a.summary_original||'';
-    const evBadge=a.event_start?`<span class="ev-badge">📅 ${a.event_start.slice(0,10)}</span>`:'';
-    el.innerHTML=
-      `<div class="card-ph" style="font-size:22px">${
-        a.category==='news_domestic'?'🇹🇭':a.category==='news_intl'?'🌏':
-        a.category==='events'?'🎉':a.category==='mall_events'?'🏬':
-        a.category==='privilege'?'🎖️':'📰'
-      }</div>
-      <div class="card-body">
-        <div class="card-meta">
-          <span class="tag" style="background:${color}">${name}</span>
-          <span class="card-source">${a.source_name||''}</span>
-        </div>
-        <h2 class="card-title">${title}</h2>
-        <p class="card-summary">${summary.slice(0,120)}${summary.length>120?'…':''}</p>
-        <div class="card-footer">
-          <a class="card-link" href="${a.url}" target="_blank" rel="noopener">元記事</a>
-          ${evBadge}
-        </div>
-      </div>`;
-    grid.appendChild(el);
+
+  // カテゴリ順にグループ化
+  const catOrder = {{ cat_order_json | safe }};
+  const catLabels = {{ cat_labels_json | safe }};
+  const grouped = {};
+  RECENT_ARTICLES.forEach(a => {
+    (grouped[a.category] = grouped[a.category] || []).push(a);
+  });
+
+  catOrder.forEach(cat => {
+    const items = grouped[cat];
+    if (!items || items.length === 0) return;
+
+    // カテゴリヘッダー
+    const header = document.createElement('div');
+    header.style.cssText = 'grid-column:1/-1;margin-top:20px;margin-bottom:4px;display:flex;align-items:center;gap:8px';
+    const color = CAT_COLORS[cat] || '#888';
+    header.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color}"></span>
+      <span style="font-family:'Noto Serif JP',serif;font-size:14px;font-weight:700;color:var(--ink)">${catLabels[cat]||cat}</span>
+      <span style="font-size:11px;color:var(--ink-lt)">${items.length}件</span>`;
+    grid.appendChild(header);
+
+    items.forEach(a => {
+      const color2 = CAT_COLORS[a.category] || '#888';
+      const name   = CAT_NAMES[a.category]  || a.category;
+      const el     = document.createElement('article');
+      el.className = 'card';
+      const title   = a.title_ja   || a.title_original   || '';
+      const summary = a.summary_ja || a.summary_original || '';
+      const evBadge = a.event_start
+        ? `<span class="ev-badge">📅 ${a.event_start.slice(0,10)}</span>` : '';
+
+      // 画像あり or プレースホルダー
+      const imgHtml = a.image_url
+        ? `<img class="card-img" src="${a.image_url}" alt="" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="card-ph" style="font-size:22px">${
+            cat==='news_domestic'?'🇹🇭':cat==='news_intl'?'🌏':
+            cat==='events'?'🎉':cat==='mall_events'?'🏬':
+            cat==='privilege'?'🎖️':'📰'
+          }</div>`;
+
+      el.innerHTML = imgHtml +
+        `<div class="card-body">
+          <div class="card-meta">
+            <span class="tag" style="background:${color2}">${name}</span>
+            <span class="card-source">${a.source_name||''}</span>
+          </div>
+          <h2 class="card-title">${title}</h2>
+          <p class="card-summary">${summary.slice(0,120)}${summary.length>120?'…':''}</p>
+          <div class="card-footer">
+            <a class="card-link" href="${a.url}" target="_blank" rel="noopener">元記事</a>
+            ${evBadge}
+          </div>
+        </div>`;
+      grid.appendChild(el);
+    });
   });
 })();
 

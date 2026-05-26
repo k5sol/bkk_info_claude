@@ -21,7 +21,7 @@ client_instance = None
 
 # sources_config から定数を読み込む
 sys.path.insert(0, str(Path(__file__).parent))
-from sources_config import MULTI_EVENT_SOURCES, FILTER_FOR_EVENTS_SOURCES, PASSTHROUGH_CATEGORIES
+from sources_config import MULTI_EVENT_SOURCES, FILTER_FOR_EVENTS_SOURCES
 
 
 def _clean_json(text: str) -> str:
@@ -200,6 +200,11 @@ EVENT_SYS = """\
    ต.ค.=10月, พ.ย.=11月, ธ.ค.=12月）も日付として認識する
 4. タイ仏暦（例:2569）は西暦に変換（-543）する
 5. event_startに既に値がある場合はそれを尊重し、より詳細な情報で上書き可能
+
+summary_ja の書き方:
+- コンサート・ライブの場合: 必ず「開催日: ○月○日（曜）」を冒頭に記載する
+- チケット販売告知の場合: 「公演日: ○月○日、チケット販売: ○月○日〜」と明記する
+- 通常のイベント: 内容・会場・入場料を2〜4文でまとめる
 """
 
 def translate_events(articles: list[dict]) -> None:

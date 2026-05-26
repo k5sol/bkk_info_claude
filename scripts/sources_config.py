@@ -31,11 +31,22 @@ SOURCES = [
     },
 
     # ── Thailand Privilege ────────────────────────────────────────────
+    # 公式サイトはログイン必須のため代替ソースを複数設定
+    # fetch_sources.py が取得できたものを優先して使う
     {
-        "id": "privilege_news",
-        "name": "Thailand Privilege",
-        "type": "rss_fulltext",
-        "url": "https://thaireloservices-thailandprivilege.com/news/feed/",
+        "id": "privilege_tatnews",
+        "name": "Thailand Privilege（TAT News）",
+        "type": "rss",
+        "url": "https://www.tatnews.org/category/thailand-privilege/feed/",
+        "category": "privilege",
+        "max_items": 10,
+        "lang": "en",
+    },
+    {
+        "id": "privilege_gnews",
+        "name": "Thailand Privilege（Google News）",
+        "type": "rss",
+        "url": "https://news.google.com/rss/search?q=%22Thailand+Privilege+Card%22+news+update&hl=en&gl=TH&ceid=TH:en",
         "category": "privilege",
         "max_items": 10,
         "lang": "en",
@@ -97,7 +108,7 @@ SOURCES = [
         "lang": "th",
     },
 
-    # ── イベント情報（英語・本文取得して複数イベント分離） ─────────
+    # ── イベント情報 ─────────────────────────────────────────────────
     {
         "id": "tat_events",
         "name": "TAT公式イベント",
@@ -207,14 +218,8 @@ SOURCES = [
     },
 ]
 
-# 複数イベント分離を行うソースID
 MULTI_EVENT_SOURCES = {"tat_events", "bk_events"}
-
-# イベント記事のみ選別するソースID（ニュース混在ソース）
 FILTER_FOR_EVENTS_SOURCES = {"coconuts_bkk", "nation_events"}
-
-# 翻訳するがフィルタリングしないカテゴリ（そのまま掲載）
-PASSTHROUGH_CATEGORIES = {"ja_news", "privilege"}
 
 CATEGORY_LABELS = {
     "ja_news":       "日本語サイト",
